@@ -16,7 +16,7 @@ picture of what is ours and why.
 
 ## What the fork adds
 
-Two workflow files, both new files that carry their own `//// Neoffice — added file` header. No
+Three workflow files, all new files that carry their own `//// Neoffice — added file` header. No
 file of upstream's is changed.
 
 - `.github/workflows/neoffice-web.yml`: builds the browser version on a GitHub runner, started by
@@ -24,6 +24,9 @@ file of upstream's is changed.
   disabled on this fork, because they need upstream's signing secrets.
 - `.github/workflows/neoffice-markers.yml`: fails a push to `version-15` when a change to
   upstream's code since the common ancestor carries no marker.
+- `.github/workflows/neoffice-ci.yml`: runs upstream's own quality gate, `cargo xtask ci`, on a
+  GitHub runner (by hand, or on a push that touches code), because the maintainer's Mac has too
+  little disk to run it for every change.
 
 ## Files that cannot carry a comment
 
