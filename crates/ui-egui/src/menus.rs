@@ -66,6 +66,8 @@ pub fn palette(app: &mut SlideApp, ctx: &egui::Context) {
             let r = ui.add(egui::TextEdit::singleline(&mut query).hint_text("Search commands…").desired_width(f32::INFINITY).font(theme::font(15.0)));
             r.request_focus();
             let q = query.to_lowercase();
+            // //// Neoffice — no New, Open or Close to find when the hosting page opens the presentations (`run` refuses them).
+            let hosted = app.services.host_owns_documents;
             let mut items: Vec<(String, String, Option<&'static str>)> = app
                 .session
                 .commands()
@@ -73,6 +75,8 @@ pub fn palette(app: &mut SlideApp, ctx: &egui::Context) {
                 .filter(|c| c.enabled)
                 .map(|c| (c.id.to_string(), c.label.to_string(), c.shortcut))
                 .chain(crate::UI_COMMANDS.iter().map(|c| (c.0.to_string(), c.1.to_string(), c.2)))
+                // //// Neoffice — see `hosted` above: the commands a host keeps for itself are not listed.
+                .filter(|(id, ..)| !(hosted && crate::hidden_from_a_host(id)))
                 .filter(|(id, label, _)| q.is_empty() || label.to_lowercase().contains(&q) || id.to_lowercase().contains(&q))
                 .collect();
             items.sort_by_key(|(_, l, _)| !l.to_lowercase().starts_with(&q));

@@ -230,6 +230,13 @@ pub struct SlideApp {
     pub(crate) thumb_drag: Option<(usize, usize)>,
 }
 
+// //// Neoffice — added: the commands a hosting page that opens the presentations does not leave to the editor: they
+// bring another presentation in, close the page's or show the start screen. `run` refuses them and the command
+// palette does not list them.
+pub(crate) fn hidden_from_a_host(id: &str) -> bool {
+    matches!(id, "file.new" | "file.close" | "file.open" | "file.openBytes" | "app.openDialog" | "app.home")
+}
+
 impl SlideApp {
     pub fn new(session: Session, mut services: Services) -> Self {
         let audio_out = services.audio_out.take();
@@ -281,9 +288,7 @@ impl SlideApp {
         // //// Neoffice — a hosting page opens the presentations (`Services::host_owns_documents`): what would bring
         // another one in, close this one or show the start screen is the page's, not the editor's. The page's own
         // file arrives through the inbox, which does not come this way.
-        if self.services.host_owns_documents
-            && matches!(id, "file.new" | "file.close" | "file.open" | "file.openBytes" | "app.openDialog" | "app.home")
-        {
+        if self.services.host_owns_documents && hidden_from_a_host(id) {
             let why = "This presentation is opened from the page that hosts the editor.".to_string();
             self.set_status(why.clone());
             return Err(why);
@@ -995,6 +1000,29 @@ mod tests {
         app.drain_inbox();
         assert_eq!(app.session.documents().len(), before + 1, "the page's presentation opened");
         assert!(app.run("file.new", json!({})).is_err());
+    }
+
+    // //// Neoffice — the command palette of an editor whose hosting page opens the presentations does not list the
+    // commands that bring another one in or close the page's; the other commands are found as before.
+    #[test]
+    fn the_command_palette_of_a_host_that_opens_the_presentations_has_no_new_presentation() {
+        use egui_kittest::kittest::Queryable;
+        for hosted in [false, true] {
+            let services = Services { host_owns_documents: hosted, ..Default::default() };
+            let mut harness = egui_kittest::Harness::builder().with_size(egui::vec2(1280.0, 800.0)).build_ui_state(
+                |ui, app: &mut SlideApp| {
+                    let ctx = ui.ctx().clone();
+                    app.logic(&ctx);
+                    app.ui(ui);
+                },
+                SlideApp::new(Session::with_new(), services),
+            );
+            harness.run_steps(3);
+            harness.state_mut().palette = Some(("new".into(), 0));
+            harness.run_steps(3);
+            assert_eq!(harness.query_by_label("New Presentation").is_some(), !hosted, "New Presentation, hosted {hosted}");
+            assert!(harness.query_by_label("New Slide").is_some(), "the other commands are found, hosted {hosted}");
+        }
     }
 
     #[test]
