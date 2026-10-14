@@ -16,8 +16,8 @@ picture of what is ours and why.
 
 ## What the fork adds
 
-Three workflow files, all new files that carry their own `//// Neoffice — added file` header. No
-file of upstream's is changed.
+Three workflow files and one feature, all marked in place. The workflow files are new files that carry
+their own `//// Neoffice — added file` header.
 
 - `.github/workflows/neoffice-web.yml`: builds the browser version on a GitHub runner, started by
   hand, with the packaging script upstream's own release job runs. Upstream's workflows are
@@ -27,6 +27,34 @@ file of upstream's is changed.
 - `.github/workflows/neoffice-ci.yml`: runs upstream's own quality gate, `cargo xtask ci`, on a
   GitHub runner (by hand, or on a push that touches code), because the maintainer's Mac has too
   little disk to run it for every change.
+- **The host bridge of the browser build** (new file `apps/deckcraft-web/src/host.rs`; marked changes
+  in `apps/deckcraft-web/src/web.rs`, `apps/deckcraft-web/src/main.rs`, the web-sys features of
+  `apps/deckcraft-web/Cargo.toml`, `crates/ui-egui/src/lib.rs` and `crates/engine/src/lib.rs`,
+  `crates/engine/src/cmd/file.rs`, with a test in `crates/engine/src/tests.rs`): the `postMessage`
+  contract of a page that frames the editor (`?host=parent`, same origin), the one upstream's
+  GridCraft and PdfCraft already use, so one host page (the Drive of the Suite, NeoDesk's window)
+  drives every Craft editor: `deckcraft:ready`, `deckcraft:open` (a file to edit), `deckcraft:save`
+  (every file the editor would download), `deckcraft:dirty` and `deckcraft:failed`, plus
+  `deckcraft:saved` (`ok: false` marks the presentation unsaved again and says why: ours, upstream's
+  bridges have no answer to a save) and `?author=` (the name that signs comments, `Prefs::author`).
+  Upstream's DeckCraft has no such bridge, neither in v0.6.1 nor in `main`. Without `?host=parent`
+  the editor behaves as before. The editor side of it is two small additions to upstream's code:
+  `Services::host_save`, a hook that Save and Save As use in place of `download` (in `save_as_dialog`),
+  and `DocState::opened_from`, the name of the file a presentation was opened from
+  (`file.openBytes` sets it).
+  - **Save and Save As write PowerPoint files.** A presentation opened from `x.pptx`, `x.potx` or
+    `x.ppsx` goes back to the page as a PowerPoint file under the same name; one opened from
+    `x.deckcraft` stays a `.deckcraft`; one made in the editor is `<title>.pptx`. (Without the bridge
+    the web build downloads `<title>.deckcraft`, DeckCraft's own zip, whatever was opened.) DeckCraft
+    writes a `.potx` or `.ppsx` as an ordinary presentation package, so PowerPoint may not take such a
+    file for a template or a show.
+  - In host mode the editor starts on a blank presentation (what `?blank` opens), not on the sample
+    deck, and the blank one makes way when a file opened from bytes (the page's) is there.
+  - The interface is English only (DeckCraft has no string catalog yet, see
+    `docs/localization-parity.md`), so the status line "Couldn't save {name}: {error}" has no French.
+    Its French, for when there is a catalog: "Impossible d'enregistrer {name} : {error}".
+  - Drop the bridge when upstream ships its own for DeckCraft, keeping `deckcraft:saved`, the
+    PowerPoint save and the blank start.
 
 ## Files that cannot carry a comment
 

@@ -543,3 +543,18 @@ fn inserted_hyperlinks_look_like_links() {
     s.execute("format.underline", &json!({})).unwrap();
     assert_eq!(s.execute("format.state", &json!({})).unwrap()["underline"], false);
 }
+
+// //// Neoffice — a presentation opened from bytes remembers the name of the file; a page that hosts the editor
+// gets the presentation back under that name.
+#[test]
+fn open_bytes_remembers_the_name_of_the_file() {
+    let mut s = Session::new();
+    sample::open_sample(&mut s).unwrap();
+    assert_eq!(s.doc().unwrap().opened_from, None);
+    let data = s.execute("file.saveBytes", &json!({"format": "pptx"})).unwrap()["data"].as_str().unwrap().to_string();
+    s.execute("file.openBytes", &json!({"name": "Quarterly.pptx", "data": data})).unwrap();
+    assert_eq!(s.doc().unwrap().opened_from.as_deref(), Some("Quarterly.pptx"));
+    assert_eq!(s.documents()[0].opened_from, None, "the presentation it was saved from is left alone");
+    s.execute("file.new", &json!({})).unwrap();
+    assert_eq!(s.doc().unwrap().opened_from, None);
+}

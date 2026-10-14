@@ -3,6 +3,8 @@
 use deckcraft_engine::Session;
 use deckcraft_ui_egui::{Inbox, Services, SlideApp};
 use wasm_bindgen::JsCast as _;
+// //// Neoffice — the bridge to the page that frames the editor (`?host=parent`).
+use crate::host;
 
 const PRESENTATION_EXTS: &[&str] = &["deckcraft", "pptx", "potx", "ppsx", "txt", "md"];
 const PICTURE_EXTS: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "bmp", "tif", "tiff"];
@@ -28,6 +30,10 @@ pub fn start() {
         {
             create.instance_descriptor.backends = eframe::wgpu::Backends::GL;
         }
+        // //// Neoffice — a page that frames the editor and asks for the bridge (`?host=parent`) sends it the
+        // presentation to edit and takes what it saves.
+        let bridge = host::Bridge::requested();
+        let app_bridge = bridge.clone();
         let result = eframe::WebRunner::new()
             .start(
                 canvas,
@@ -37,22 +43,41 @@ pub fn start() {
                         log::info!("deckcraft-web {}: wgpu backend {:?}", env!("CARGO_PKG_VERSION"), rs.adapter.get_info().backend);
                     }
                     let inbox: Inbox = Inbox::default();
-                    let mut app = SlideApp::new(Session::new(), services(inbox.clone(), cc.egui_ctx.clone()));
+                    let mut services = services(inbox.clone(), cc.egui_ctx.clone());
+                    // //// Neoffice — the hosting page gets the saves and the exports, and sends the files.
+                    if let Some(bridge) = &app_bridge {
+                        bridge.connect(&mut services, inbox.clone(), cc.egui_ctx.clone());
+                    }
+                    let mut app = SlideApp::new(Session::new(), services);
                     let q = query();
-                    if !q.contains("blank") {
+                    // //// Neoffice — a hosting page sends the presentation to edit: until it does the editor
+                    // starts on a blank one (what `?blank` opens), not on the sample deck.
+                    if !q.contains("blank") && app_bridge.is_none() {
                         if let Err(e) = deckcraft_engine::sample::open_sample(&mut app.session) {
                             log::error!("sample deck: {e}");
                         }
                     } else if let Err(e) = app.run("file.new", serde_json::json!({})) {
                         log::error!("new presentation: {e}");
                     }
+                    // //// Neoffice — the hosting page learns the editor listens, and names the user who signs the comments.
+                    if let Some(bridge) = &app_bridge {
+                        if let Some(author) = host::Bridge::author() {
+                            app.session.prefs.author = author;
+                        }
+                        bridge.ready(&app);
+                    }
                     if q.contains("show") {
                         app.start_show(0, false);
                     }
-                    Ok(Box::new(WebShell { app, inbox }))
+                    // //// Neoffice — the shell keeps the bridge to the hosting page.
+                    Ok(Box::new(WebShell { app, inbox, bridge: app_bridge }))
                 }),
             )
             .await;
+        // //// Neoffice — a hosting page hears that the editor could not start (no WebGPU nor WebGL2, for example).
+        if let (Err(e), Some(bridge)) = (&result, &bridge) {
+            bridge.post_failed(&format!("{e:?}"));
+        }
         if let Some(el) = document.get_element_by_id(LOADING_ID) {
             match result {
                 Ok(()) => el.remove(),
@@ -71,6 +96,8 @@ fn query() -> String {
 struct WebShell {
     app: SlideApp,
     inbox: Inbox,
+    // //// Neoffice — the bridge to the page that frames the editor, when it asked for one.
+    bridge: Option<host::Bridge>,
 }
 
 impl eframe::App for WebShell {
@@ -90,6 +117,10 @@ impl eframe::App for WebShell {
                 }
             });
         }
+        // //// Neoffice — what the hosting page refused to store shows before the frame is drawn.
+        if let Some(bridge) = &self.bridge {
+            bridge.before_frame(&mut self.app);
+        }
         self.app.logic(ctx);
     }
 
@@ -99,6 +130,10 @@ impl eframe::App for WebShell {
 
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.app.ui(ui);
+        // //// Neoffice — the hosting page hears when unsaved changes appear or go away.
+        if let Some(bridge) = &self.bridge {
+            bridge.after_frame(&mut self.app);
+        }
     }
 }
 

@@ -37,6 +37,8 @@ pub type WriteFn = Box<dyn FnMut(&str, &[u8]) -> Result<(), String>>;
 pub type PickFn = Box<dyn FnMut(&str) -> Option<String>>;
 pub type OpenAsyncFn = Box<dyn FnMut(&str)>;
 pub type DownloadFn = Box<dyn FnMut(&str, &[u8])>;
+// //// Neoffice — see `Services::host_save`.
+pub type HostSaveFn = Box<dyn FnMut(&mut deckcraft_engine::DocState) -> Result<(), String>>;
 /// Files `(name, bytes)` delivered asynchronously by the host (web file picker, dropped files).
 pub type Inbox = std::sync::Arc<std::sync::Mutex<Vec<(String, Vec<u8>)>>>;
 
@@ -53,6 +55,11 @@ pub struct Services {
     pub open_async: Option<OpenAsyncFn>,
     /// Hand bytes to the user as a named file (browser download).
     pub download: Option<DownloadFn>,
+    // //// Neoffice — added hook (no upstream equivalent), for a page that frames the editor.
+    /// The page stores the presentation itself: Save and Save As give it the presentation instead of
+    /// encoding a file for `download`. It marks the presentation saved once it holds it; an `Err` is
+    /// shown in the status bar.
+    pub host_save: Option<HostSaveFn>,
     pub inbox: Option<Inbox>,
     /// Image on the system clipboard (PNG bytes), when the host can read one.
     pub clipboard_image: Option<Box<dyn FnMut() -> Option<Vec<u8>>>>,
@@ -424,6 +431,13 @@ impl SlideApp {
                     }
                     Err(e) => self.set_status(e.to_string()),
                 }
+            }
+        } else if let Some(host_save) = self.services.host_save.as_mut()
+            && let Some(d) = self.session.active_mut()
+        {
+            // //// Neoffice — a page that frames the editor takes the presentation (and picks its name and format).
+            if let Err(e) = host_save(d) {
+                self.set_status(e);
             }
         } else if let Some(dl) = self.services.download.as_mut()
             && let Some(d) = self.session.active()

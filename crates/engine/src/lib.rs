@@ -141,6 +141,9 @@ pub struct DocState {
     pub interaction: Option<Interaction>,
     pub uid: u64,
     pub title: String,
+    // //// Neoffice — the name of the file whose bytes this presentation was opened from (`file.openBytes`); `None` for
+    // a new presentation or one opened from a path. A page that hosts the editor gets the presentation back under that name.
+    pub opened_from: Option<String>,
 }
 
 static NEXT_UID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
@@ -158,6 +161,8 @@ impl DocState {
             interaction: None,
             uid: NEXT_UID.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
             title,
+            // //// Neoffice — see `DocState::opened_from`.
+            opened_from: None,
         }
     }
     pub fn is_dirty(&self) -> bool {

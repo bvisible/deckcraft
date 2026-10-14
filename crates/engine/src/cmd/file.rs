@@ -101,6 +101,10 @@ fn open_bytes(s: &mut Session, p: &Value) -> Result<Value> {
     let data = str_param(p, "data").and_then(base64_decode).ok_or_else(|| bad("file.openBytes", "missing or invalid base64 `data`"))?;
     let doc = open_presentation(name, &data)?;
     let i = add_opened(s, name, None, doc);
+    // //// Neoffice — remember the file the bytes came from: a page that hosts the editor gets the presentation back under that name.
+    if let Some(st) = s.active_mut() {
+        st.opened_from = Some(name.to_string());
+    }
     Ok(json!({"document": i}))
 }
 

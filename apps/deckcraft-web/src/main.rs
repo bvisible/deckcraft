@@ -14,8 +14,17 @@
 //!
 //! URL query flags: `?webgl` forces the WebGL2 backend instead of WebGPU; `?blank` starts with an
 //! empty presentation instead of the sample deck; `?show` starts the slide show.
+//!
+//! `?host=parent` is for a page of the same origin that frames the editor: it sends the presentation to
+//! edit and stores what the editor saves (see `host`). `?author=<name>` is the name that signs comments.
+// //// Neoffice — the paragraph above is ours: upstream has neither `?host=parent` nor `?author=`.
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 #![forbid(unsafe_code)]
+
+// //// Neoffice — added module: the bridge to the page that frames the editor (`?host=parent`). Its rules are
+// tested natively, so it is built for tests as well; only its `postMessage` half is browser code.
+#[cfg(any(target_arch = "wasm32", test))]
+mod host;
 
 #[cfg(target_arch = "wasm32")]
 mod web;
