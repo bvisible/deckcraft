@@ -56,6 +56,10 @@ their own `//// Neoffice — added file` header.
   - Drop the bridge when upstream ships its own for DeckCraft, keeping `deckcraft:saved`, the
     PowerPoint save and the blank start.
 
+- **No Discord link in the About dialog nor on the start screen** (`crates/ui-egui/src/dialogs.rs`, two marked places):
+  the links to upstream's community are not shown, for everyone who uses this build. The MCP server's instructions and
+  the `app.links` command list the project's addresses for agents, and stay as upstream has them.
+
 ## Files that cannot carry a comment
 
 None so far.
