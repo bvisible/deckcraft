@@ -239,8 +239,6 @@ mod bridge {
         /// Sends every file the editor would download to the parent, hands it the presentations
         /// Save and Save As produce, and hears its files and its answers to the saves.
         pub fn connect(&self, services: &mut Services, inbox: Inbox, ctx: egui::Context) {
-            // //// Neoffice — the page that frames the editor opens the presentations (`Services::host_owns_documents`).
-            services.host_owns_documents = true;
             self.listen(inbox, ctx);
             let bridge = self.clone();
             services.download = Some(Box::new(move |name: &str, bytes: &[u8]| {

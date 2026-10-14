@@ -59,6 +59,11 @@ pub fn start() {
                     } else if let Err(e) = app.run("file.new", serde_json::json!({})) {
                         log::error!("new presentation: {e}");
                     }
+                    // //// Neoffice — from here on the page that frames the editor opens the presentations
+                    // (`Services::host_owns_documents`); the blank one above is the editor's own start.
+                    if app_bridge.is_some() {
+                        app.services.host_owns_documents = true;
+                    }
                     // //// Neoffice — the hosting page learns the editor listens, and names the user who signs the comments.
                     if let Some(bridge) = &app_bridge {
                         if let Some(author) = host::Bridge::author() {

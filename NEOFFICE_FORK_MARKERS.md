@@ -60,8 +60,8 @@ their own `//// Neoffice — added file` header.
   the links to upstream's community are not shown, for everyone who uses this build. The MCP server's instructions and
   the `app.links` command list the project's addresses for agents, and stay as upstream has them.
 
-- **A hosting page opens the presentations** (`Services::host_owns_documents`, set by `apps/deckcraft-web/src/host.rs`,
-  so only when a page frames the editor with `?host=parent`): the editor does not bring another presentation in beside
+- **A hosting page opens the presentations** (`Services::host_owns_documents`, set by `apps/deckcraft-web/src/web.rs` after
+  the editor's own blank start, so only when a page frames the editor with `?host=parent`): the editor does not bring another presentation in beside
   the page's, close it or show its start screen. `file.new`, `file.close`, `file.open`, `file.openBytes`,
   `app.openDialog` and `app.home` are refused with a status message (`run` in `crates/ui-egui/src/lib.rs`), the start
   screen says that the page gives the presentation (`dialogs.rs`), the title bar has no Home button (`ribbon.rs`), and
