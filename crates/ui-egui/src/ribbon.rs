@@ -47,7 +47,8 @@ pub fn title_bar(app: &mut SlideApp, ui: &mut Ui) {
         child.spacing_mut().item_spacing.x = 2.0;
         let has_doc = app.session.active().is_some();
         let dirty = app.session.active().is_some_and(|d| d.is_dirty());
-        if icon_toggle(&mut child, Icon::Home, "Home", true, app.home_open()).clicked() {
+        // //// Neoffice — no Home (the start screen) when the hosting page opens the presentations.
+        if !app.services.host_owns_documents && icon_toggle(&mut child, Icon::Home, "Home", true, app.home_open()).clicked() {
             let _ = app.run("app.home", json!({}));
         }
         if icon_toggle(&mut child, Icon::Save, "Save (⌘S)", has_doc, false).clicked() {

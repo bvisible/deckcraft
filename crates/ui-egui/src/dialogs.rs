@@ -847,6 +847,15 @@ pub fn start_screen(app: &mut SlideApp, ui: &mut Ui) {
             paint_logo(ui.painter(), r);
             ui.label(egui::RichText::new("DeckCraft").font(theme::bold(26.0)));
         });
+        // //// Neoffice — a page that opens the presentations has the one to show: nothing to create or open here.
+        if app.services.host_owns_documents {
+            ui.add_space(16.0);
+            ui.horizontal(|ui| {
+                ui.add_space(40.0);
+                ui.label(egui::RichText::new("The page that hosts the editor gives it the presentation to edit.").font(theme::font(14.0)));
+            });
+            return;
+        }
         if app.home_open() {
             let title = app.session.active().map(|d| d.title()).unwrap_or_default();
             ui.add_space(8.0);

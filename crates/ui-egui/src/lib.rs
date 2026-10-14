@@ -39,6 +39,13 @@ pub type OpenAsyncFn = Box<dyn FnMut(&str)>;
 pub type DownloadFn = Box<dyn FnMut(&str, &[u8])>;
 // //// Neoffice — see `Services::host_save`.
 pub type HostSaveFn = Box<dyn FnMut(&mut deckcraft_engine::DocState) -> Result<(), String>>;
+// //// Neoffice — added: whether a file is a presentation the editor would open (what a hosting page that opens the
+// presentations does not let a drop bring in).
+pub fn opens_as_presentation(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    [".deckcraft", ".slidecraft", ".pptx", ".potx", ".ppsx"].iter().any(|e| lower.ends_with(e))
+}
+
 /// Files `(name, bytes)` delivered asynchronously by the host (web file picker, dropped files).
 pub type Inbox = std::sync::Arc<std::sync::Mutex<Vec<(String, Vec<u8>)>>>;
 
@@ -60,6 +67,11 @@ pub struct Services {
     /// encoding a file for `download`. It marks the presentation saved once it holds it; an `Err` is
     /// shown in the status bar.
     pub host_save: Option<HostSaveFn>,
+    // //// Neoffice — the page that frames the editor (the Drive of the Suite, Neodesk's window) opens the
+    // presentations: New, Open, Close and Home are not offered and are refused, so the person is not shown a
+    // presentation the page knows nothing about. The page's own file still opens. Off, as upstream has it, for
+    // every other build.
+    pub host_owns_documents: bool,
     pub inbox: Option<Inbox>,
     /// Image on the system clipboard (PNG bytes), when the host can read one.
     pub clipboard_image: Option<Box<dyn FnMut() -> Option<Vec<u8>>>>,
@@ -266,6 +278,16 @@ impl SlideApp {
     /// Run a command by id (UI commands here, everything else in the engine). Errors show in the
     /// status bar and are returned.
     pub fn run(&mut self, id: &str, params: Value) -> Result<Value, String> {
+        // //// Neoffice — a hosting page opens the presentations (`Services::host_owns_documents`): what would bring
+        // another one in, close this one or show the start screen is the page's, not the editor's. The page's own
+        // file arrives through the inbox, which does not come this way.
+        if self.services.host_owns_documents
+            && matches!(id, "file.new" | "file.close" | "file.open" | "file.openBytes" | "app.openDialog" | "app.home")
+        {
+            let why = "This presentation is opened from the page that hosts the editor.".to_string();
+            self.set_status(why.clone());
+            return Err(why);
+        }
         let r = if UI_COMMANDS.iter().any(|c| c.0 == id) {
             self.run_ui(id, &params)
         } else {
@@ -944,6 +966,56 @@ mod tests {
         harness.run_steps(2);
         assert!(!harness.state().home_open(), "a new presentation leaves Home");
         assert_eq!(harness.state().session.documents().len(), 2);
+    }
+
+    // //// Neoffice — a hosting page opens the presentations: the editor does not switch to another one by itself,
+    // and the file the page hands over still opens.
+    #[test]
+    fn a_host_that_opens_the_presentations_keeps_the_editor_on_its_presentation() {
+        let inbox: Inbox = Inbox::default();
+        let services = Services { host_owns_documents: true, inbox: Some(inbox.clone()), ..Default::default() };
+        let mut app = SlideApp::new(Session::with_new(), services);
+        let before = app.session.documents().len();
+        for id in ["file.new", "file.close", "file.open", "file.openBytes", "app.openDialog", "app.home"] {
+            assert!(app.run(id, json!({})).is_err(), "{id} is the page's, not the editor's");
+        }
+        assert_eq!(app.session.documents().len(), before, "still the presentation the page gave");
+        assert!(!app.home_open());
+        let said = app.status.as_ref().map(|(m, _)| m.clone()).unwrap_or_default();
+        assert!(said.contains("hosts the editor"), "{said}");
+        // What is not a switch is as before.
+        assert!(app.run("view.sorter", json!({})).is_ok());
+        // The page's own presentation opens through the inbox.
+        let bytes = {
+            let mut other = Session::with_new();
+            let r = other.execute("file.saveBytes", &json!({"format": "pptx"})).unwrap();
+            deckcraft_engine::cmd::base64_decode(r.get("data").and_then(Value::as_str).unwrap()).unwrap()
+        };
+        inbox.lock().unwrap().push(("Page.pptx".into(), bytes));
+        app.drain_inbox();
+        assert_eq!(app.session.documents().len(), before + 1, "the page's presentation opened");
+        assert!(app.run("file.new", json!({})).is_err());
+    }
+
+    #[test]
+    fn without_a_host_new_and_home_are_the_editors_as_upstream_has_them() {
+        let mut app = SlideApp::new(Session::with_new(), Services::default());
+        let before = app.session.documents().len();
+        app.run("file.new", json!({})).unwrap();
+        assert_eq!(app.session.documents().len(), before + 1);
+        app.run("app.home", json!({})).unwrap();
+        assert!(app.home_open());
+    }
+
+    // //// Neoffice — what the web shell asks before it takes a file dropped on an editor whose page opens documents.
+    #[test]
+    fn only_a_presentation_is_a_presentation() {
+        for name in ["a.pptx", "A.PPTX", "b.potx", "c.ppsx", "d.deckcraft", "e.slidecraft"] {
+            assert!(opens_as_presentation(name), "{name}");
+        }
+        for name in ["p.png", "clip.mp4", "song.mp3", "outline.txt", "notes.md", "t.xlsx"] {
+            assert!(!opens_as_presentation(name), "{name}");
+        }
     }
 
     #[test]
