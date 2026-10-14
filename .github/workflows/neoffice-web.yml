@@ -5,13 +5,22 @@
 # zip with its SHA-256. Run it by hand from the Actions tab; upstream's workflows are disabled on
 # this fork (they need upstream's signing secrets). Third-party actions are pinned by commit, as
 # upstream does, and the fork only allows the ones listed in its Actions settings.
+#
+# With `release` ticked, the zip and its SHA256SUMS.txt are also published as a GitHub release
+# (`web-<version>-<short sha>`): that is where the Suite's installer (suite/drive/wopi/craft_install.py)
+# fetches the build from, pinned by its SHA-256. A plain run only keeps the artifact.
 name: Neoffice web build
 
 on:
   workflow_dispatch:
+    inputs:
+      release:
+        description: "Also publish the zip as a GitHub release (web-<version>-<short sha>)"
+        type: boolean
+        default: false
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   web:
@@ -51,3 +60,20 @@ jobs:
           name: deckcraft-web
           path: dist/release/*
           if-no-files-found: error
+      - name: Publish the release
+        if: ${{ inputs.release }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cd dist/release
+          zip_name=$(ls deckcraft-web-*.zip)
+          version=${zip_name#deckcraft-web-}
+          version=${version%.zip}
+          tag="web-${version}-${GITHUB_SHA::7}"
+          gh release create "$tag" "$zip_name" SHA256SUMS.txt \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "Browser build ${version} (${GITHUB_SHA::7})" \
+            --notes "Browser build of DeckCraft ${version} from commit ${GITHUB_SHA}. SHA-256 in SHA256SUMS.txt."
+          echo "published $tag"
+
