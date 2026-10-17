@@ -6,6 +6,8 @@
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 #![forbid(unsafe_code)]
 
+// //// Neoffice — the title bar's account button (WordCraft's): the initials of the person a hosting page names.
+mod account;
 pub mod canvas;
 pub mod control;
 pub mod credits;

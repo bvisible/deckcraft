@@ -70,6 +70,16 @@ their own `//// Neoffice — added file` header.
   `crates/ui-egui/src/lib.rs`. The message is English only, like the rest of the interface. Every other build behaves
   as before.
 
+- **The account button of the title bar** (new file `crates/ui-egui/src/account.rs`, with its tests; one marked line in
+  `lib.rs` and one in `ribbon.rs`'s `title_bar`): at the right end of the title bar, the button WordCraft has there, so
+  the four editors show the person the same way: a round badge in the accent colour, a square of the bar's control
+  height (26, the Present button's), with up to two initials (the first letters of the words of `Prefs::author`, the
+  name a hosting page passes as `?author=`), and the name, nothing else, as the hover text. The initials take, of
+  white and the theme's dark, the one that reads better on the accent, at least 4.5:1 (a test checks it): the title
+  bar's own colour on the dark theme (5:1; white, the theme's colour for text on the accent, reads at 3:1 there),
+  black on the light theme (5.4:1; white 3.9:1, and none of the theme's greys reaches 4.5:1 on its orange). It shows
+  only when a name is known: not while the name is blank or the engine's placeholder ("Presenter"). No new text.
+
 ## Files that cannot carry a comment
 
 None so far.
