@@ -174,6 +174,17 @@ pub fn install_fonts(ctx: &egui::Context) {
             list.insert(k, n.clone());
         }
     }
+    // //// Neoffice — Latin text and its punctuation are drawn by a Latin font: Inter when craft-fonts has it, else egui's
+    // Ubuntu Light, before the Japanese face. That face's dashes (U+2013, U+2014) are hairlines 0.05 em thick that vanish at
+    // interface sizes: with a craft-fonts checkout that has no Inter, the em dash didn't show in Nora's pane nor in the
+    // Outline view. The Japanese and Arabic faces stay behind, for their scripts.
+    if let Some(list) = defs.families.get_mut(&FontFamily::Proportional)
+        && let Some(at) = list.iter().position(|name| name == "Ubuntu-Light")
+    {
+        let latin = list.remove(at);
+        let after_inter = list.iter().take_while(|name| name.contains("-Inter-")).count();
+        list.insert(after_inter, latin);
+    }
     // A bold family for headings and selected tabs.
     let mut bold: Vec<String> = names.iter().filter(|(fam, st, _)| *fam == "Inter" && *st == "SemiBold").map(|(_, _, n)| n.clone()).collect();
     bold.extend(defs.families.get(&FontFamily::Proportional).cloned().unwrap_or_default());
@@ -191,4 +202,38 @@ pub fn font(size: f32) -> egui::FontId {
 
 pub fn to_color32(c: deckcraft_color::Rgba) -> Color32 {
     Color32::from_rgba_unmultiplied(c.r, c.g, c.b, c.a)
+}
+
+// //// Neoffice — added tests: the order of the interface fonts (see the Neoffice block of `install_fonts`).
+#[cfg(test)]
+mod neoffice_tests {
+    #![allow(clippy::unwrap_used, clippy::expect_used)]
+
+    use super::*;
+
+    /// The interface fonts as egui holds them once `install_fonts` ran.
+    fn installed() -> FontDefinitions {
+        let ctx = egui::Context::default();
+        install_fonts(&ctx);
+        // A frame loads the fonts; its textures are not uploaded anywhere here.
+        ctx.run_ui(egui::RawInput::default(), |_| {}).textures_delta.clear();
+        ctx.fonts(|fonts| fonts.definitions().clone())
+    }
+
+    /// Latin text and its punctuation (— – « » ’ … •) are drawn by a Latin font, Inter or else egui's Ubuntu Light, not by
+    /// the Japanese face: its dashes are hairlines 0.05 em thick, which vanish at interface sizes (they did in the Nora
+    /// pane and the Outline view). The Japanese and Arabic faces stay behind it for their own scripts.
+    #[test]
+    fn latin_punctuation_comes_from_a_latin_font_before_the_cjk_one() {
+        let defs = installed();
+        for family in [FontFamily::Proportional, FontFamily::Name("bold".into())] {
+            let list = defs.families.get(&family).cloned().unwrap_or_default();
+            let latin = list.iter().position(|name| name.contains("-Inter-") || name == "Ubuntu-Light");
+            let cjk = list.iter().position(|name| name.contains("BIZ UDPGothic"));
+            assert!(latin.is_some(), "{family:?}: a Latin font is installed: {list:?}");
+            if let (Some(latin), Some(cjk)) = (latin, cjk) {
+                assert!(latin < cjk, "{family:?}: the Latin font comes first: {list:?}");
+            }
+        }
+    }
 }

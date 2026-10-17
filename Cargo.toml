@@ -69,6 +69,13 @@ egui_kittest = "0.36"
 rfd = "0.17"
 arboard = { version = "3.6", default-features = false }
 
+# //// Neoffice — the Nora assistant pane (crates/ui-egui/src/nora_pane.rs), the one NeoWrite (WordCraft) has, so the
+# same Nora works in every editor. Neoffice's craft-libs fork carries Nora's client core and its egui panel, at the
+# revision WordCraft uses. Both depend on egui only (the same 0.36 as here). To follow a newer craft-libs, move this
+# revision; nothing else changes.
+craft-nora = { git = "https://github.com/bvisible/craft-libs", rev = "8fee6abfbd33ae783a4d74bbcf005ae3ca986f84" }
+craft-nora-ui = { git = "https://github.com/bvisible/craft-libs", rev = "8fee6abfbd33ae783a4d74bbcf005ae3ca986f84" }
+
 [workspace.lints.rust]
 unsafe_code = "forbid"
 

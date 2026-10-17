@@ -5,6 +5,8 @@ use deckcraft_ui_egui::{Inbox, Services, SlideApp};
 use wasm_bindgen::JsCast as _;
 // //// Neoffice — the bridge to the page that frames the editor (`?host=parent`).
 use crate::host;
+// //// Neoffice — added module: the Nora pane's connection (a `fetch` with the page's own session, or the host's own call).
+mod nora;
 
 const PRESENTATION_EXTS: &[&str] = &["deckcraft", "pptx", "potx", "ppsx", "txt", "md"];
 const PICTURE_EXTS: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "bmp", "tif", "tiff"];
@@ -25,7 +27,8 @@ pub fn start() {
             return;
         };
         let mut options = eframe::WebOptions::default();
-        if query().contains("webgl")
+        // //// Neoffice — the address's flags are read by name (`has_param`), not found anywhere in its text.
+        if has_param("webgl")
             && let eframe::egui_wgpu::WgpuSetup::CreateNew(create) = &mut options.wgpu_options.wgpu_setup
         {
             create.instance_descriptor.backends = eframe::wgpu::Backends::GL;
@@ -48,11 +51,17 @@ pub fn start() {
                     if let Some(bridge) = &app_bridge {
                         bridge.connect(&mut services, inbox.clone(), cc.egui_ctx.clone());
                     }
+                    // //// Neoffice — a page that asks for Nora (`?nora`) gets the pane, connected with the page's own
+                    // session (another origin only as `nora::requested` allows). The browser build keeps no setting, so the
+                    // host opens it. A host that makes the calls itself (`deckcraftNoraCall`, Neodesk) turns it on the same way.
+                    let nora = nora::requested().or_else(|| nora::offered().then(String::new));
+                    if let Some(origin) = &nora {
+                        nora::connect(&mut services, origin.clone(), cc.egui_ctx.clone());
+                    }
                     let mut app = SlideApp::new(Session::new(), services);
-                    let q = query();
                     // //// Neoffice — a hosting page sends the presentation to edit: until it does the editor
-                    // starts on a blank one (what `?blank` opens), not on the sample deck.
-                    if !q.contains("blank") && app_bridge.is_none() {
+                    // starts on a blank one (what `?blank` opens), not on the sample deck. The flags are read by name.
+                    if !has_param("blank") && app_bridge.is_none() {
                         if let Err(e) = deckcraft_engine::sample::open_sample(&mut app.session) {
                             log::error!("sample deck: {e}");
                         }
@@ -71,7 +80,15 @@ pub fn start() {
                         }
                         bridge.ready(&app);
                     }
-                    if q.contains("show") {
+                    // //// Neoffice — see `nora` above: the pane opens by itself when the page offers Nora.
+                    if nora.is_some()
+                        && let Err(e) = app.run("ui.nora", serde_json::json!({"on": true}))
+                    {
+                        log::error!("the Nora pane could not be opened: {e}");
+                    }
+                    // //// Neoffice — by name: `show` in a host name (`?nora=https://showroom…`) or in a name the page
+                    // passes (`?author=`) started the slide show over the editor and its Nora pane.
+                    if has_param("show") {
                         app.start_show(0, false);
                     }
                     // //// Neoffice — the shell keeps the bridge to the hosting page.
@@ -94,6 +111,12 @@ pub fn start() {
 
 fn query() -> String {
     web_sys::window().and_then(|w| w.location().search().ok()).unwrap_or_default()
+}
+
+// //// Neoffice — added: whether the page's address has the parameter `name`, read by name with `URLSearchParams`
+// as `host.rs` reads its own, where a substring test of the address found `show` in `showroom`.
+fn has_param(name: &str) -> bool {
+    web_sys::UrlSearchParams::new_with_str(&query()).is_ok_and(|params| params.has(name))
 }
 
 /// Wraps the app to read dropped files asynchronously (browsers can't read them synchronously)

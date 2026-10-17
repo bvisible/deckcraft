@@ -17,7 +17,11 @@
 //!
 //! `?host=parent` is for a page of the same origin that frames the editor: it sends the presentation to
 //! edit and stores what the editor saves (see `host`). `?author=<name>` is the name that signs comments.
-// //// Neoffice — the paragraph above is ours: upstream has neither `?host=parent` nor `?author=`.
+//!
+//! `?nora` opens the Nora assistant pane, connected with the page's session (`?nora=<origin>` is taken only
+//! for a loopback stand-in from a loopback page, see `nora_origin`); a page that makes Nora's calls itself
+//! offers `window.deckcraftNoraCall(path, body)` instead (see `web::nora`).
+// //// Neoffice — the two paragraphs above are ours: upstream has neither `?host=parent`, `?author=` nor `?nora`.
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 #![forbid(unsafe_code)]
 
@@ -25,6 +29,9 @@
 // tested natively, so it is built for tests as well; only its `postMessage` half is browser code.
 #[cfg(any(target_arch = "wasm32", test))]
 mod host;
+// //// Neoffice — added module: where the Nora pane's calls may go (`web::nora` applies it); its rules are tested natively.
+#[cfg(any(target_arch = "wasm32", test))]
+mod nora_origin;
 
 #[cfg(target_arch = "wasm32")]
 mod web;

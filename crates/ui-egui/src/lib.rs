@@ -16,6 +16,10 @@ pub mod fillui;
 pub mod icons;
 pub mod media;
 pub mod menus;
+// //// Neoffice — added modules: the Nora assistant pane (Neoffice's assistant, built on craft-nora and craft-nora-ui),
+// and the language of the words Neoffice adds (DeckCraft has no string catalog yet).
+pub mod neoffice_i18n;
+pub mod nora_pane;
 pub mod panes;
 pub mod ribbon;
 pub mod show;
@@ -50,6 +54,10 @@ pub fn opens_as_presentation(name: &str) -> bool {
 
 /// Files `(name, bytes)` delivered asynchronously by the host (web file picker, dropped files).
 pub type Inbox = std::sync::Arc<std::sync::Mutex<Vec<(String, Vec<u8>)>>>;
+// //// Neoffice — answers to the Nora pane's calls, delivered asynchronously by the host like `Inbox`.
+pub type NoraInbox = std::sync::Arc<std::sync::Mutex<Vec<craft_nora::HttpResponse>>>;
+// //// Neoffice — a host that connects the Nora pane makes these calls and delivers these answers.
+pub use craft_nora::{HttpRequest, HttpResponse};
 
 /// Platform services injected by the host (desktop or web).
 #[derive(Default)]
@@ -74,6 +82,14 @@ pub struct Services {
     // presentation the page knows nothing about. The page's own file still opens. Off, as upstream has it, for
     // every other build.
     pub host_owns_documents: bool,
+    // //// Neoffice — the connection of the Nora assistant pane. Nora (the agent) lives on the Neoffice server, so the
+    // pane needs the host's session and credentials to reach her: the host makes the HTTP call and delivers the answer
+    // through `nora_inbox`. Without one the pane says that Nora isn't available and offers no text box.
+    /// Make one call for the Nora pane: a `POST` of a JSON body to a path of the Neoffice instance. The host adds the
+    /// origin and the credentials of its session.
+    pub nora_http: Option<Box<dyn Fn(craft_nora::HttpRequest)>>,
+    /// The answers to [`Services::nora_http`], delivered asynchronously by the host.
+    pub nora_inbox: Option<NoraInbox>,
     pub inbox: Option<Inbox>,
     /// Image on the system clipboard (PNG bytes), when the host can read one.
     pub clipboard_image: Option<Box<dyn FnMut() -> Option<Vec<u8>>>>,
@@ -119,6 +135,10 @@ pub struct UiState {
     /// Format Shape pane: tab (`fill`, `effects`, `size`, `picture`, `text`).
     pub format_tab: String,
     pub grayscale: bool,
+    // //// Neoffice — the Nora assistant pane, off until the person turns it on (the browser build turns it on when the
+    // hosting page offers Nora).
+    /// Preferences › Assistant: show the Nora pane at the right of the window (the `ui.nora` command), kept between runs.
+    pub nora_pane: bool,
 }
 
 impl Default for UiState {
@@ -144,6 +164,8 @@ impl Default for UiState {
             ui_scale: 1.0,
             format_tab: "fill".into(),
             grayscale: false,
+            // //// Neoffice — off by default: nothing changes for anyone who doesn't ask for it.
+            nora_pane: false,
         }
     }
 }
@@ -183,6 +205,8 @@ pub const UI_COMMANDS: &[(&str, &str, Option<&str>, &str)] = &[
     ("app.exportDialog", "Export…", None, "{}"),
     ("app.dialog", "Open Dialog", None, "{id}"),
     ("app.links", "Community Links", None, "{}"),
+    // //// Neoffice — the Nora assistant pane (`nora_pane`), named by the assistant's name, the same in every language.
+    ("ui.nora", "Nora", None, "{on?: bool} → {nora}"),
 ];
 
 pub struct Perf {
@@ -230,6 +254,8 @@ pub struct SlideApp {
     pub(crate) notes_buf: (u64, usize, String),
     /// Thumbnail pane drag (slide index, current drop index).
     pub(crate) thumb_drag: Option<(usize, usize)>,
+    // //// Neoffice — the conversation of the Nora assistant pane (see `nora_pane`).
+    pub nora: nora_pane::NoraState,
 }
 
 // //// Neoffice — added: the commands a hosting page that opens the presentations does not leave to the editor: they
@@ -272,6 +298,8 @@ impl SlideApp {
             quit_confirmed: false,
             notes_buf: (0, usize::MAX, String::new()),
             thumb_drag: None,
+            // //// Neoffice — the Nora assistant pane's conversation starts empty.
+            nora: Default::default(),
         }
     }
 
@@ -395,6 +423,16 @@ impl SlideApp {
             "app.links" => {
                 use deckcraft_engine::links::*;
                 return Ok(json!({"discord": DISCORD, "website": WEBSITE, "apps": APPS, "appPage": APP_PAGE, "github": GITHUB}));
+            }
+            // //// Neoffice — the Nora assistant pane: `on` (or `value`, the name WordCraft's `ui.nora` takes) true or
+            // false shows or hides it; without either it toggles. Also Preferences › Assistant.
+            "ui.nora" => {
+                self.ui.nora_pane = match p.get("on").or_else(|| p.get("value")) {
+                    None => !self.ui.nora_pane,
+                    Some(Value::Bool(on)) => *on,
+                    Some(_) => return Err("`on` must be true or false".into()),
+                };
+                return Ok(json!({"nora": self.ui.nora_pane}));
             }
             _ => return Err(format!("unknown UI command `{id}`")),
         }
@@ -746,6 +784,11 @@ impl SlideApp {
         if self.session.active().is_some() && !self.home_open() {
             ribbon::show(self, ui);
             status::status_bar(self, ui);
+            // //// Neoffice — the Nora assistant pane, outermost at the right, in every view; shown when `ui.nora`
+            // (Preferences › Assistant, or the hosting page) turns it on.
+            if self.ui.nora_pane {
+                nora_pane::pane(self, ui);
+            }
         }
         egui::CentralPanel::default().frame(egui::Frame::NONE.fill(t.chrome)).show(ui, |ui| {
             if self.session.active().is_none() || self.home_open() {

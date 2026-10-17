@@ -733,6 +733,13 @@ fn body(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
                 ui.label("Your name (comments):");
                 ui.text_edit_singleline(&mut app.session.prefs.author);
             });
+            // //// Neoffice — the switch of the Nora assistant pane (nora_pane.rs), off by default, in the person's language.
+            let lang = app.nora.lang;
+            ui.label(egui::RichText::new(crate::neoffice_i18n::tr(lang, "Assistant")).font(theme::bold(13.0)));
+            let mut nora = app.ui.nora_pane;
+            if ui.checkbox(&mut nora, crate::neoffice_i18n::tr(lang, "Show the Nora assistant pane (experimental)")).changed() {
+                let _ = app.run("ui.nora", json!({"on": nora}));
+            }
             let (ok, _) = buttons(ui, "Done");
             ok
         }

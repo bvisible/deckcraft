@@ -19,6 +19,12 @@ deckcraft-anim = { workspace = true }
 deckcraft-engine = { workspace = true }
 deckcraft-media = { workspace = true }
 egui = { workspace = true }
+# //// Neoffice — the Nora assistant pane (nora_pane.rs): Nora's client core and its egui panel; and the person's
+# preferred languages (the operating system's, or the browser's with `js`), which pick the language of the words
+# Neoffice adds (neoffice_i18n.rs), as WordCraft, GridCraft and PdfCraft pick theirs.
+craft-nora = { workspace = true }
+craft-nora-ui = { workspace = true }
+sys-locale = { version = "0.3", features = ["js"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 log = { workspace = true }
