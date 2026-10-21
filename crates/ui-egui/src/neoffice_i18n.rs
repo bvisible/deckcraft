@@ -129,6 +129,13 @@ pub const ENGLISH: &[&str] = &[
     "Show the Nora assistant pane (experimental)",
     "Nora has nothing left to undo.",
     "You changed the presentation after Nora did: use the editor's Undo instead.",
+    "Stop",
+    "Stopped.",
+    "Nora did not answer in time.",
+    "Nora could not be reached. Check the connection and try again.",
+    "Your session has expired. Sign in again.",
+    "The server could not answer (error {status}). Try again in a moment.",
+    "Nora's answer could not be read.",
 ];
 
 /// French (Swiss customers, "vous"), WordCraft's wording where the pane says the same.
@@ -162,6 +169,16 @@ const FRENCH: &[(&str, &str)] = &[
         "You changed the presentation after Nora did: use the editor's Undo instead.",
         "Vous avez modifié la présentation après Nora : utilisez plutôt la fonction Annuler de l'éditeur.",
     ),
+    ("Stop", "Arrêter"),
+    ("Stopped.", "Arrêté."),
+    ("Nora did not answer in time.", "Nora n'a pas répondu à temps."),
+    ("Nora could not be reached. Check the connection and try again.", "Nora n'a pas pu être jointe. Vérifiez la connexion et réessayez."),
+    ("Your session has expired. Sign in again.", "Votre session a expiré. Reconnectez-vous."),
+    (
+        "The server could not answer (error {status}). Try again in a moment.",
+        "Le serveur n'a pas pu répondre (erreur {status}). Réessayez dans un instant.",
+    ),
+    ("Nora's answer could not be read.", "La réponse de Nora n'a pas pu être lue."),
 ];
 
 /// German (Swiss Standard German, "Sie"); the Undo button says what WordCraft's catalog says.
@@ -195,6 +212,19 @@ const GERMAN: &[(&str, &str)] = &[
         "You changed the presentation after Nora did: use the editor's Undo instead.",
         "Sie haben die Präsentation nach der Änderung durch Nora bearbeitet: Verwenden Sie stattdessen die Rückgängig-Funktion des Editors.",
     ),
+    ("Stop", "Stoppen"),
+    ("Stopped.", "Gestoppt."),
+    ("Nora did not answer in time.", "Nora hat nicht rechtzeitig geantwortet."),
+    (
+        "Nora could not be reached. Check the connection and try again.",
+        "Nora war nicht erreichbar. Prüfen Sie die Verbindung und versuchen Sie es erneut.",
+    ),
+    ("Your session has expired. Sign in again.", "Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an."),
+    (
+        "The server could not answer (error {status}). Try again in a moment.",
+        "Der Server konnte nicht antworten (Fehler {status}). Versuchen Sie es in einem Moment erneut.",
+    ),
+    ("Nora's answer could not be read.", "Die Antwort von Nora konnte nicht gelesen werden."),
 ];
 
 /// Italian (formal register; the infinitive for actions and buttons).
@@ -228,6 +258,16 @@ const ITALIAN: &[(&str, &str)] = &[
         "You changed the presentation after Nora did: use the editor's Undo instead.",
         "Ha modificato la presentazione dopo l'intervento di Nora: usi invece la funzione Annulla dell'editor.",
     ),
+    ("Stop", "Interrompere"),
+    ("Stopped.", "Interrotto."),
+    ("Nora did not answer in time.", "Nora non ha risposto in tempo."),
+    ("Nora could not be reached. Check the connection and try again.", "Nora non è raggiungibile. Controlli la connessione e riprovi."),
+    ("Your session has expired. Sign in again.", "La sessione è scaduta. Acceda di nuovo."),
+    (
+        "The server could not answer (error {status}). Try again in a moment.",
+        "Il server non ha potuto rispondere (errore {status}). Riprovi tra poco.",
+    ),
+    ("Nora's answer could not be read.", "Non è stato possibile leggere la risposta di Nora."),
 ];
 
 #[cfg(test)]

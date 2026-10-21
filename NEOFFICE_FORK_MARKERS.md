@@ -158,5 +158,5 @@ their own `//// Neoffice — added file` header.
 ## Files that cannot carry a comment
 
 - `Cargo.lock`: the Nora pane's dependencies, `craft-nora` and `craft-nora-ui` from `bvisible/craft-libs` (git, revision
-  `8fee6abfbd33ae783a4d74bbcf005ae3ca986f84`, the one WordCraft uses) and `sys-locale` 0.3.2 (the person's preferred
+  `adbcef6c286b6bcd264cc91fbf50dc3f42d60e5a`, the one WordCraft uses) and `sys-locale` 0.3.2 (the person's preferred
   languages). Nothing else moved. At an upstream merge, take upstream's lock and let cargo add these back.
