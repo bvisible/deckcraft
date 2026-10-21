@@ -74,7 +74,9 @@ pub fn open_presentation(name: &str, bytes: &[u8]) -> Result<Presentation> {
         }
         return Ok(p);
     }
-    Err(EngineError::Other(format!("{name}: not a presentation DeckCraft can read")))
+    // //// Neoffice — our builds show our product's name (NEOFFICE_PRODUCT_NAME), upstream's otherwise (the rule of crates/ui-egui/src/brand.rs, which this layer cannot reach).
+    let app = option_env!("NEOFFICE_PRODUCT_NAME").map(str::trim).filter(|n| !n.is_empty()).unwrap_or("DeckCraft");
+    Err(EngineError::Other(format!("{name}: not a presentation {app} can read")))
 }
 
 pub fn add_opened(s: &mut Session, name: &str, path: Option<String>, p: Presentation) -> usize {

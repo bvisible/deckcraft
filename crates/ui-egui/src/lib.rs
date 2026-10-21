@@ -8,6 +8,8 @@
 
 // //// Neoffice — the title bar's account button (WordCraft's): the initials of the person a hosting page names.
 mod account;
+// //// Neoffice — our builds show our product's name (NEOFFICE_PRODUCT_NAME), upstream's otherwise (see brand.rs).
+pub mod brand;
 pub mod canvas;
 pub mod control;
 pub mod credits;
@@ -597,7 +599,8 @@ impl SlideApp {
         } else if lower.ends_with(".txt") || lower.ends_with(".md") {
             "slide.fromOutline"
         } else {
-            self.set_status(format!("{name}: DeckCraft can't open this kind of file"));
+            // //// Neoffice — our builds show our product's name (NEOFFICE_PRODUCT_NAME), upstream's otherwise.
+            self.set_status(format!("{name}: {} can't open this kind of file", brand::name()));
             return;
         };
         let p = if cmd == "slide.fromOutline" { json!({"text": String::from_utf8_lossy(bytes)}) } else { json!({"name": name, "data": data}) };

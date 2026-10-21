@@ -74,7 +74,8 @@ pub fn palette(app: &mut SlideApp, ctx: &egui::Context) {
                 .into_iter()
                 .filter(|c| c.enabled)
                 .map(|c| (c.id.to_string(), c.label.to_string(), c.shortcut))
-                .chain(crate::UI_COMMANDS.iter().map(|c| (c.0.to_string(), c.1.to_string(), c.2)))
+                // //// Neoffice — our builds show our product's name (NEOFFICE_PRODUCT_NAME), upstream's otherwise (`About DeckCraft`).
+                .chain(crate::UI_COMMANDS.iter().map(|c| (c.0.to_string(), crate::brand::label(c.1).to_string(), c.2)))
                 // //// Neoffice — see `hosted` above: the commands a host keeps for itself are not listed.
                 .filter(|(id, ..)| !(hosted && crate::hidden_from_a_host(id)))
                 .filter(|(id, label, _)| q.is_empty() || label.to_lowercase().contains(&q) || id.to_lowercase().contains(&q))
@@ -246,6 +247,7 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
                 ("Set Up Show…", "show.setup"),
             ],
         ),
-        ("Help", vec![("About DeckCraft", "app.about"), ("Command Palette", "app.palette")]),
+        // //// Neoffice — our builds show our product's name (NEOFFICE_PRODUCT_NAME), upstream's otherwise.
+        ("Help", vec![(crate::brand::about(), "app.about"), ("Command Palette", "app.palette")]),
     ]
 }

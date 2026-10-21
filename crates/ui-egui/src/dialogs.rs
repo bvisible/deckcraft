@@ -43,7 +43,8 @@ fn title(id: &str) -> &'static str {
         "renameShape" => "Rename",
         "renameLayout" => "Rename Layout",
         "paragraph" => "Paragraph",
-        "about" => "About DeckCraft",
+        // //// Neoffice — our builds show our product's name (NEOFFICE_PRODUCT_NAME), upstream's otherwise.
+        "about" => crate::brand::about(),
         "preferences" => "Preferences",
         "export" => "Export",
         "symbol" => "Symbol",
@@ -55,8 +56,9 @@ fn title(id: &str) -> &'static str {
         "chartData" => "Chart Data",
         "trim" => "Trim Media",
         "smartart" => "Choose a SmartArt Graphic",
-        "quit" => "DeckCraft",
-        _ => "DeckCraft",
+        // //// Neoffice — our builds show our product's name (NEOFFICE_PRODUCT_NAME), upstream's otherwise.
+        "quit" => crate::brand::name(),
+        _ => crate::brand::name(),
     }
 }
 
@@ -798,7 +800,8 @@ pub fn about(_app: &mut SlideApp, ui: &mut Ui) {
     ui.vertical_centered(|ui| {
         let (r, _) = ui.allocate_exact_size(vec2(64.0, 64.0), Sense::hover());
         paint_logo(ui.painter(), r);
-        ui.label(egui::RichText::new("DeckCraft").font(theme::bold(22.0)));
+        // //// Neoffice — our builds show our product's name (NEOFFICE_PRODUCT_NAME), upstream's otherwise.
+        ui.label(egui::RichText::new(crate::brand::name()).font(theme::bold(22.0)));
         ui.label(egui::RichText::new(version_line()).color(t.text_dim));
         ui.add_space(6.0);
         ui.label("Presentations and slide shows, rebuilt from scratch in pure Rust.");
@@ -852,7 +855,8 @@ pub fn start_screen(app: &mut SlideApp, ui: &mut Ui) {
             ui.add_space(40.0);
             let (r, _) = ui.allocate_exact_size(vec2(40.0, 40.0), Sense::hover());
             paint_logo(ui.painter(), r);
-            ui.label(egui::RichText::new("DeckCraft").font(theme::bold(26.0)));
+            // //// Neoffice — our builds show our product's name (NEOFFICE_PRODUCT_NAME), upstream's otherwise.
+            ui.label(egui::RichText::new(crate::brand::name()).font(theme::bold(26.0)));
         });
         // //// Neoffice — a page that opens the presentations has the one to show: nothing to create or open here.
         if app.services.host_owns_documents {

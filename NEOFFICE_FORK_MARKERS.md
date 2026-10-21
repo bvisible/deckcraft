@@ -144,6 +144,17 @@ their own `//// Neoffice — added file` header.
   (U+2013, U+2014) are hairlines 0.05 em thick that vanish at interface sizes, so the em dash didn't show in Nora's pane
   nor in the Outline view. Builds with Inter, and builds without craft-fonts, looked as before.
 
+- **Our product's name in our builds** (new file `crates/ui-egui/src/brand.rs`): `brand::name()` is
+  `NEOFFICE_PRODUCT_NAME` when the build sets it (only the build step of `neoffice-web.yml`: `NeoPrés`), upstream's
+  name otherwise, so upstream's builds and every test run are unchanged. DeckCraft has no string catalog, so the places
+  that show the app's name call `brand::name()`, `brand::about()` or `brand::label()`: the title bar without a
+  presentation (`ribbon.rs`), the About dialog and its title, the start screen, the quit dialog's title (`dialogs.rs`),
+  the Help menu and the command palette (`menus.rs`), the Presenter View's title (`show.rs`), a status message
+  (`lib.rs`) and the page that failed to start (`apps/deckcraft-web/src/web.rs`); `crates/engine/src/cmd/file.rs`,
+  below the interface, applies the same rule to its "not a presentation … can read" error. The page title and the
+  loading text are ours in `apps/deckcraft-web/index.html`. The `DeckCraft` theme, storage folders, `deckcraft:*`
+  messages, `ai.storyteller.*`, the file format's generator, the licence line and the native app keep upstream's name.
+
 ## Files that cannot carry a comment
 
 - `Cargo.lock`: the Nora pane's dependencies, `craft-nora` and `craft-nora-ui` from `bvisible/craft-libs` (git, revision
