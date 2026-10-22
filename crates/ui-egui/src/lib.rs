@@ -2746,10 +2746,14 @@ mod tests {
                 SlideApp::new(Session::with_new(), services),
             );
             harness.run_steps(3);
+            // The ribbon has some of the same labels (New Slide): what the palette adds is what it lists.
+            let count = |h: &egui_kittest::Harness<'_, SlideApp>, label: &str| h.query_all_by_label(label).count();
+            let before = [count(&harness, "New Presentation"), count(&harness, "New Slide")];
             harness.state_mut().palette = Some(("new".into(), 0));
             harness.run_steps(3);
-            assert_eq!(harness.query_by_label("New Presentation").is_some(), !hosted, "New Presentation, hosted {hosted}");
-            assert!(harness.query_by_label("New Slide").is_some(), "the other commands are found, hosted {hosted}");
+            let listed = |h: &egui_kittest::Harness<'_, SlideApp>, label: &str, i: usize| count(h, label) > before[i];
+            assert_eq!(listed(&harness, "New Presentation", 0), !hosted, "New Presentation, hosted {hosted}");
+            assert!(listed(&harness, "New Slide", 1), "the other commands are found, hosted {hosted}");
         }
     }
 
