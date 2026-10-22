@@ -1,0 +1,138 @@
+# //// Neoffice — added file (no upstream equivalent)
+# Why: Nora, the assistant of the Neoffice server, finds the commands of the editor open in front of
+# the person in a catalogue kept on the server (neoffice_theme/json/editor_commands_deck.json). That
+# catalogue must be the editor's own list at the revision Neoffice serves, and only what the Nora pane
+# lets her play. This builds the CLI of that revision and asks its MCP server for its own list (the
+# `list_commands` tool of `deckcraft-cli mcp`, which upstream keeps across versions), then asks the
+# pane's policy about every command, through a test module added to nora_pane.rs on the runner only
+# (never committed), and keeps both as an artifact. The normaliser of
+# neoffice-theme turns them into the catalogue. Run it by hand from the Actions tab with the revision
+# the Suite pins (suite/drive/wopi/craft_editors.json). It reads the code only and needs no secret.
+name: Neoffice Nora catalogue
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Revision to export: the one the Suite pins (suite/drive/wopi/craft_editors.json)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  catalogue:
+    name: Commands and the pane's verdicts
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      CARGO_TERM_COLOR: always
+      CARGO_INCREMENTAL: 0
+      RUST_BACKTRACE: 1
+      CARGO_PROFILE_DEV_DEBUG: line-tables-only
+      CARGO_PROFILE_TEST_DEBUG: line-tables-only
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
+      - name: Linux build dependencies (winit, wgpu, rfd, audio)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            pkg-config libasound2-dev libxkbcommon-dev libwayland-dev libx11-dev libxcursor-dev libxrandr-dev \
+            libxi-dev libgtk-3-dev libfontconfig1-dev libfreetype-dev libgl1-mesa-dev mesa-vulkan-drivers
+      - uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f # v1
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          key: neoffice-nora-catalogue
+      - name: The editor's own command list (list_commands of deckcraft-cli mcp)
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/catalogue"
+          mkdir -p "$OUT"
+          cargo build --locked -p deckcraft-cli
+          python3 -I - target/debug/deckcraft-cli "$OUT/registry.json" <<'PY'
+          import json, subprocess, sys
+          cli, out = sys.argv[1], sys.argv[2]
+          messages = [
+              {"jsonrpc": "2.0", "id": 1, "method": "initialize",
+               "params": {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "neoffice-catalogue", "version": "1"}}},
+              {"jsonrpc": "2.0", "method": "notifications/initialized"},
+              {"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "list_commands", "arguments": {}}},
+          ]
+          stdin = "".join(json.dumps(m) + "\n" for m in messages)
+          done = subprocess.run([cli, "mcp"], input=stdin, capture_output=True, text=True, timeout=300, check=True)
+          replies = [json.loads(line) for line in done.stdout.splitlines() if line.strip()]
+          reply = next(r for r in replies if r.get("id") == 2)
+          result = reply["result"]
+          assert not result.get("isError"), result
+          commands = json.loads(result["content"][0]["text"])
+          assert isinstance(commands, list) and commands, "list_commands gave no command"
+          json.dump(commands, open(out, "w"), indent=2)
+          PY
+      - name: The pane's verdict on every command (a test module added on the runner only)
+        env:
+          NEOFFICE_CATALOGUE_OUT: ${{ runner.temp }}/catalogue/pane.json
+        run: |
+          set -euo pipefail
+          cat >> crates/ui-egui/src/nora_pane.rs <<'RUST'
+
+          #[cfg(test)]
+          mod neoffice_catalogue_export {
+              #[test]
+              fn export() {
+                  // Refused: what the conversation's policy denies, and what a hosting page keeps to itself
+                  // (the Drive and NeoDesk own the presentations: crate::hidden_from_a_host).
+                  let policy = super::policy();
+                  let refused = |id: &str| policy.check(id) == craft_nora::Decision::Deny || crate::hidden_from_a_host(id);
+                  let mut rows: Vec<serde_json::Value> = deckcraft_engine::cmd::command_specs()
+                      .iter()
+                      .map(|c| serde_json::json!({"id": c.id, "journal": c.journal, "undoable": c.undoable, "refused": refused(c.id), "ui": false}))
+                      .collect();
+                  // The app's own commands (views, the slide show, the dialogs): not in the engine's list.
+                  rows.extend(crate::UI_COMMANDS.iter().map(|c| serde_json::json!({"id": c.0, "journal": false, "undoable": false, "refused": refused(c.0), "ui": true})));
+                  let out = std::env::var("NEOFFICE_CATALOGUE_OUT").unwrap_or_else(|_| panic!("NEOFFICE_CATALOGUE_OUT is not set"));
+                  let text = serde_json::to_string_pretty(&rows).unwrap_or_else(|e| panic!("{e}"));
+                  std::fs::write(&out, text).unwrap_or_else(|e| panic!("{out}: {e}"));
+              }
+          }
+          RUST
+          cargo test --locked -p deckcraft-ui-egui --lib neoffice_catalogue_export -- --test-threads=1
+          test -s "$NEOFFICE_CATALOGUE_OUT"
+      - name: Where it comes from
+        env:
+          REPOSITORY: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/catalogue"
+          cargo metadata --locked --no-deps --format-version 1 > "$RUNNER_TEMP/metadata.json"
+          python3 -I - "$RUNNER_TEMP/metadata.json" "$OUT" <<'PY'
+          import json, os, subprocess, sys
+          metadata, out = sys.argv[1], sys.argv[2]
+          packages = {p["name"]: p["version"] for p in json.load(open(metadata))["packages"]}
+          registry = json.load(open(os.path.join(out, "registry.json")))
+          pane = json.load(open(os.path.join(out, "pane.json")))
+          # Both lists come from the same registry: a difference means the export is not what it says.
+          assert sorted(c["id"] for c in registry) == sorted(c["id"] for c in pane if not c["ui"]), "the CLI and the pane list other commands"
+          meta = {
+              "editor": "deckcraft",
+              "app": "deck",
+              "repository": os.environ["REPOSITORY"],
+              "revision": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
+              "version": packages["deckcraft-cli"],
+              "rustc": subprocess.check_output(["rustc", "--version"], text=True).strip(),
+              "run": os.environ["RUN_URL"],
+              "source": "deckcraft-cli mcp: list_commands",
+          }
+          json.dump(meta, open(os.path.join(out, "meta.json"), "w"), indent=2)
+          print(json.dumps(meta, indent=2), f"{len(registry)} commands, {sum(c['refused'] for c in pane)} refused by the pane")
+          PY
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: nora-catalogue-deckcraft
+          path: ${{ runner.temp }}/catalogue
+          if-no-files-found: error
