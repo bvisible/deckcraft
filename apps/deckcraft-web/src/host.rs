@@ -6,10 +6,12 @@
 //! Messages are plain objects with a `type`:
 //!
 //! - `deckcraft:ready` (to the parent): `{ version }`, the app is listening; send the file now.
-//! - `deckcraft:open` (from the parent): `{ name, bytes }`, `bytes` an `ArrayBuffer` or
+//! - `deckcraft:open` (from the parent): `{ name, bytes, id? }`, `bytes` an `ArrayBuffer` or
 //!   `Uint8Array`. It opens like a presentation dropped on the window: `name` is the file's name with
 //!   its extension (`.pptx`, `.potx`, `.ppsx` or `.deckcraft`), which decides how it is read and what
-//!   Save writes back.
+//!   Save writes back. Neoffice's addition: `id`, the page's own name for the file (the Drive's file id),
+//!   which Nora's pane tells Nora with each message about that presentation; a page that sends none
+//!   changes nothing.
 //! - `deckcraft:save` (to the parent): `{ name, bytes }` (a transferred `ArrayBuffer`) for every file
 //!   DeckCraft would otherwise download: Save and Save As, and the exports (PDF, PNG…). The parent
 //!   stores it, or offers it, by the file's extension. Save and Save As hand the presentation back in
@@ -57,8 +59,9 @@ struct Hosted {
     failures: RefCell<Vec<(Option<u64>, String, String)>>,
     /// The blank presentation the editor started on until the page sends its own (document uid).
     placeholder: Cell<Option<u64>>,
-    /// Files the page sent (`deckcraft:open`), opened at the start of the next frame: (file name, bytes).
-    arrived: RefCell<Vec<(String, Vec<u8>)>>,
+    /// Files the page sent (`deckcraft:open`), opened at the start of the next frame: (file name, bytes, the page's
+    /// id for the file).
+    arrived: RefCell<Vec<(String, Vec<u8>, Option<String>)>>,
     /// Why files the page sent could not be opened, for the page (`deckcraft:failed`), before the next frame.
     open_failures: RefCell<Vec<String>>,
 }
@@ -105,9 +108,10 @@ impl Hosted {
         }
     }
 
-    /// The page sent a file to edit. It opens at the start of the next frame ([`Hosted::open_arrived`]).
-    fn receive(&self, name: String, bytes: Vec<u8>) {
-        self.arrived.borrow_mut().push((name, bytes));
+    /// The page sent a file to edit, with its own id for it when it has one (the Drive's file id). It opens at the
+    /// start of the next frame ([`Hosted::open_arrived`]).
+    fn receive(&self, name: String, bytes: Vec<u8>, id: Option<String>) {
+        self.arrived.borrow_mut().push((name, bytes, id));
     }
 
     /// The page sent `deckcraft:open` with nothing the editor can read as bytes. The page hears it before the next
@@ -123,7 +127,7 @@ impl Hosted {
     /// read. The person sees the same words in the status bar or the notice the editor shows.
     fn open_arrived(&self, app: &mut SlideApp) -> Vec<String> {
         let arrived = std::mem::take(&mut *self.arrived.borrow_mut());
-        for (name, bytes) in arrived {
+        for (name, bytes, id) in arrived {
             if !deckcraft_ui_egui::opens_as_presentation(&name) {
                 let why = could_not_open(&name, "it is not a presentation (.pptx, .potx, .ppsx or .deckcraft)");
                 app.set_status(why.clone());
@@ -131,10 +135,16 @@ impl Hosted {
                 continue;
             }
             let documents = app.session.documents().len();
+            let open: Vec<u64> = app.session.documents().iter().map(|d| d.uid).collect();
             let toast = app.toast.as_ref().map(|t| (t.text.clone(), t.at));
             let status = app.status.clone();
             app.open_or_insert_bytes(&name, &bytes);
             if app.session.documents().len() > documents {
+                // The page's name for its file goes with the presentation that opened for it, for Nora's pane.
+                let opened = app.session.documents().iter().map(|d| d.uid).find(|uid| !open.contains(uid));
+                if let Some(uid) = opened {
+                    deckcraft_ui_egui::nora_pane::name_file(app, uid, id.as_deref());
+                }
                 continue;
             }
             // Not opened: the editor said why in a notice (`file.openBytes`) or in the status bar.
@@ -366,7 +376,7 @@ mod bridge {
                     Some("deckcraft:open") => {
                         let name = string(&data, "name").filter(|n| !n.trim().is_empty()).unwrap_or_else(|| "Presentation.pptx".to_string());
                         match bytes(&data) {
-                            Some(bytes) => hosted.receive(name, bytes),
+                            Some(bytes) => hosted.receive(name, bytes, string(&data, "id")),
                             None => hosted.unreadable(&name, "the page sent no bytes to read (an ArrayBuffer or a Uint8Array)"),
                         }
                     }
@@ -711,7 +721,7 @@ mod tests {
         let data = deckcraft_engine::cmd::base64_encode(&deck("pptx"));
         assert!(app.run("file.openBytes", json!({"name": "Other.pptx", "data": data})).is_err());
         // ...but the file the page sends opens at the next frame, and the blank one makes way.
-        hosted.receive("Quarterly.pptx".into(), deck("pptx"));
+        hosted.receive("Quarterly.pptx".into(), deck("pptx"), None);
         assert_eq!(app.session.documents().len(), 1, "nothing opens before the frame");
         assert!(hosted.open_arrived(&mut app).is_empty(), "nothing went wrong");
         assert_eq!(app.session.documents().len(), 2);
@@ -724,6 +734,34 @@ mod tests {
         assert_eq!(app.session.documents().len(), 1);
     }
 
+    /// The page's name for its file goes with the presentation that opens for it, never with the one that was there;
+    /// a page that names none, or names it with what is no id, names none.
+    #[test]
+    fn the_file_the_page_names_is_the_presentation_that_opens_for_it() {
+        use deckcraft_ui_egui::nora_pane::named_file;
+        let (mut app, hosted, _) = editor();
+        app.run("file.new", json!({})).unwrap();
+        app.services.host_owns_documents = true;
+        hosted.started_on(&app);
+        let blank = active(&app).uid;
+        hosted.receive("Quarterly.pptx".into(), deck("pptx"), Some("3fcaa7893c".into()));
+        assert!(hosted.open_arrived(&mut app).is_empty());
+        let opened = app.session.documents().iter().map(|d| d.uid).find(|uid| *uid != blank).unwrap();
+        assert_eq!(named_file(&app, opened), Some("3fcaa7893c"));
+        assert_eq!(named_file(&app, blank), None);
+        assert!(!hosted.after_frame(&mut app));
+        assert_eq!(active(&app).uid, opened, "the blank one made way");
+        assert_eq!(named_file(&app, opened), Some("3fcaa7893c"), "and the name stayed with the page's file");
+        hosted.receive("Other.pptx".into(), deck("pptx"), None);
+        assert!(hosted.open_arrived(&mut app).is_empty());
+        let other = app.session.documents().iter().map(|d| d.uid).find(|uid| *uid != opened).unwrap();
+        assert_eq!(named_file(&app, other), None, "a file the page names not");
+        hosted.receive("Third.pptx".into(), deck("pptx"), Some("../x".into()));
+        assert!(hosted.open_arrived(&mut app).is_empty());
+        let third = app.session.documents().iter().map(|d| d.uid).find(|uid| *uid != opened && *uid != other).unwrap();
+        assert_eq!(named_file(&app, third), None, "what is no id");
+    }
+
     /// What the page sent and the editor could not open is said back to the page (`deckcraft:failed`), and the
     /// editor stays on what it had.
     #[test]
@@ -734,12 +772,12 @@ mod tests {
         hosted.started_on(&app);
         let blank = active(&app).uid;
         // Bytes that are no presentation, under a presentation's name.
-        hosted.receive("Broken.pptx".into(), b"not a zip at all".to_vec());
+        hosted.receive("Broken.pptx".into(), b"not a zip at all".to_vec(), Some("3fcaa7893c".into()));
         let said = hosted.open_arrived(&mut app);
         assert_eq!(said.len(), 1, "{said:?}");
         assert!(said[0].starts_with("Couldn't open Broken.pptx: "), "{said:?}");
         // A file that is not a presentation is not inserted into the one the editor has.
-        hosted.receive("photo.png".into(), deck("pptx"));
+        hosted.receive("photo.png".into(), deck("pptx"), None);
         let said = hosted.open_arrived(&mut app);
         assert_eq!(said.len(), 1, "{said:?}");
         assert!(said[0].contains("photo.png") && said[0].contains("not a presentation"), "{said:?}");

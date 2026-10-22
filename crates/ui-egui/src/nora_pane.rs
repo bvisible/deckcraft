@@ -31,6 +31,14 @@
 //!
 //! An action that fails leaves the presentation as it was, its undo history included, and what Nora changed can be
 //! undone a whole action at a time.
+//!
+//! Once an action changed the presentation, the links it really wrote are read ([`guard`]): a link to a file or to a
+//! program, which the server could not see in what Nora asked for, takes the whole action back, and Nora is told why.
+//!
+//! The page that hosts the editor names the file it opened (the Drive's file id, [`name_file`]): Nora is told it with
+//! each message, and the server reads it again under the person's rights.
+
+mod guard;
 
 use std::sync::Arc;
 
@@ -93,6 +101,9 @@ const MAX_DEPTH: usize = 64;
 
 const NO_PRESENTATION: &str = "no presentation is open";
 
+/// The files the hosting page named that are remembered, the oldest forgotten beyond.
+const MAX_NAMED_FILES: usize = 32;
+
 /// What Nora may play in a presentation: the editing commands. Not those that open, save or close a presentation or
 /// the application (the default policy), and not those that belong to the person: the interface, Neoffice's (`ui.`,
 /// this pane) and DeckCraft's views, panes, zoom, ribbon and dark mode ([`crate::UI_COMMANDS`]), and the others in
@@ -112,6 +123,8 @@ pub struct NoraState {
     waiting: Vec<DocumentCall>,
     /// The language of the pane's words: the person's (see [`Lang::system`]).
     pub lang: Lang,
+    /// The file each presentation is, by its uid, as the page that hosts the editor named it ([`name_file`]).
+    files: Vec<(u64, String)>,
 }
 
 /// One change Nora made: in which presentation, how many undo steps it took, and the presentation as she left it.
@@ -131,8 +144,28 @@ impl Default for NoraState {
             changes: Vec::new(),
             waiting: Vec::new(),
             lang: Lang::system(),
+            files: Vec::new(),
         }
     }
+}
+
+/// The page that hosts the editor says which of its files presentation `uid` is (`id`, the Drive's file id sent with
+/// the file), or that it names none. Nora is told the id with each message about that presentation
+/// ([`DocumentInfo::file_id`] keeps only what reads as one); the server never believes it as it comes, it reads the
+/// file again under the person's rights. A host that names no file changes nothing.
+pub fn name_file(app: &mut SlideApp, uid: u64, id: Option<&str>) {
+    let files = &mut app.nora.files;
+    files.retain(|(named, _)| *named != uid);
+    if let Some(id) = id.and_then(DocumentInfo::file_id) {
+        files.push((uid, id));
+        let excess = files.len().saturating_sub(MAX_NAMED_FILES);
+        files.drain(..excess);
+    }
+}
+
+/// The file the hosting page named presentation `uid` ([`name_file`]), if it named one.
+pub fn named_file(app: &SlideApp, uid: u64) -> Option<&str> {
+    app.nora.files.iter().find(|(named, _)| *named == uid).map(|(_, id)| id.as_str())
 }
 
 /// The pane at the right of the window, with the title row of DeckCraft's task panes ("Nora" and a close button), then
@@ -287,6 +320,12 @@ fn run_document(app: &mut SlideApp, kind: &DocActionKind) -> Result<Value, Strin
     }
     if kind.modifies() {
         let after = app.session.documents().iter().find(|d| d.uid == before.uid).map_or_else(|| Arc::clone(&before.doc), |d| Arc::clone(&d.doc));
+        // The links the action really wrote: one to a file or a program takes it all back.
+        let found = guard::added(&before.doc, &after);
+        if !found.is_empty() {
+            before.restore(app);
+            return Err(guard::refusal(&what_ran(kind), &found));
+        }
         // An action that changed nothing (no undo step, the same presentation) says so, and leaves nothing to undo: the
         // conversation then keeps nothing to undo for it either (craft-nora from 9d28340, which `Cargo.toml` pins). A
         // list (a batch's results) can't carry it: kept with no step, as the conversation keeps it.
@@ -296,6 +335,16 @@ fn run_document(app: &mut SlideApp, kind: &DocActionKind) -> Result<Value, Strin
         }
     }
     result
+}
+
+/// How Nora is told which of her actions was taken back.
+fn what_ran(kind: &DocActionKind) -> String {
+    match kind {
+        DocActionKind::Execute { command, .. } => format!("`{command}`"),
+        DocActionKind::Batch { .. } => "The batch".to_string(),
+        DocActionKind::TypeText { .. } => "The typed text".to_string(),
+        _ => "The action".to_string(),
+    }
 }
 
 /// Marks an answer as having changed nothing (`"changed": false`) when it can carry the mark: an object, or no answer
@@ -874,7 +923,8 @@ fn context_of(app: &SlideApp) -> PageContext {
     let Some(d) = app.session.active() else { return PageContext::editor(AppKind::Deck, DocumentInfo::named("")) };
     let selected = selected_text(d);
     let selection = (!selected.trim().is_empty()).then(|| Selection { text: selected.chars().take(MAX_SELECTION_CHARS).collect() });
-    PageContext::editor(AppKind::Deck, DocumentInfo { name: name_of(d), id: None, pages: u32::try_from(d.doc.slides.len()).ok(), selection })
+    let id = named_file(app, d.uid).map(str::to_string);
+    PageContext::editor(AppKind::Deck, DocumentInfo { name: name_of(d), id, pages: u32::try_from(d.doc.slides.len()).ok(), selection })
 }
 
 /// The pane's bubbles in DeckCraft's own colours, light or dark: the person's messages on the accent, in the ink that
@@ -1959,5 +2009,68 @@ mod tests {
         assert!(h.query_by_label("No answer from Nora: TypeError: Failed to fetch").is_none());
         assert_eq!(error_worder(Lang::De)(&NoraError::Http(403)), "Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.");
         assert_eq!(error_worder(Lang::It)(&NoraError::Http(502)), "Il server non ha potuto rispondere (errore 502). Riprovi tra poco.");
+    }
+
+    /// The page that hosts the editor names the file a presentation is: Nora is told its id with each message about
+    /// that presentation and no other, and what does not read as an id is never passed on.
+    #[test]
+    fn the_context_carries_the_file_the_page_named() {
+        let mut a = deck();
+        let uid = a.session.active().unwrap().uid;
+        assert_eq!(context_of(&a).document.id, None, "nothing named, nothing told");
+        name_file(&mut a, uid, Some("3fcaa7893c"));
+        assert_eq!(context_of(&a).document.id.as_deref(), Some("3fcaa7893c"));
+        let value: Value = serde_json::from_str(&context_of(&a).to_json_string()).unwrap();
+        assert_eq!(value["document"]["id"], "3fcaa7893c", "{value}");
+        a.run("file.new", json!({})).unwrap();
+        assert_eq!(context_of(&a).document.id, None, "another presentation is no file of the page's");
+        name_file(&mut a, uid, Some("a b"));
+        assert_eq!(named_file(&a, uid), None, "what is no id is not passed on, and the last one is forgotten");
+        name_file(&mut a, uid, Some("abc"));
+        name_file(&mut a, uid, None);
+        assert_eq!(named_file(&a, uid), None, "a file the page names no more");
+        for at in 0..(MAX_NAMED_FILES as u64 + 5) {
+            name_file(&mut a, 1_000 + at, Some("x"));
+        }
+        assert_eq!(a.nora.files.len(), MAX_NAMED_FILES);
+    }
+
+    /// A change of Nora's that leaves a link to a file or a program is taken back whole, and her answer says why; a
+    /// link to a web page, an address or a slide stays, and so does the person's own link.
+    #[test]
+    fn a_link_to_a_file_a_change_left_is_taken_back_and_said() {
+        let mut a = deck();
+        let doc = Arc::clone(&a.session.active().unwrap().doc);
+        let undo = a.session.active().unwrap().history.undo.len();
+        run(&mut a, select("big", 1)).unwrap();
+        let error = run(&mut a, execute("insert.hyperlink", json!({"url": "C:\\Tarifs\\catalogue.pdf"}))).unwrap_err();
+        assert!(error.starts_with("`insert.hyperlink` was undone"), "{error}");
+        assert!(error.contains("a link to C:\\Tarifs\\catalogue.pdf (slide 1)"), "{error}");
+        let d = a.session.active().unwrap();
+        assert!(Arc::ptr_eq(&d.doc, &doc), "the presentation from before");
+        assert_eq!(d.history.undo.len(), undo, "and its history");
+        assert!(a.nora.changes.is_empty(), "nothing of Nora's to undo");
+
+        deselect(&mut a);
+        let title = shape_id(&a, 0, 0);
+        a.run("edit.select", json!({"ids": [title]})).unwrap();
+        let batch = vec![
+            call("shape.action", json!({"action": "url", "url": "https://example.com", "on": "hover"})),
+            call("shape.action", json!({"action": "url", "url": "\\\\srv\\share\\x.pptx"})),
+        ];
+        let error = run(&mut a, DocActionKind::Batch { commands: batch }).unwrap_err();
+        assert!(error.starts_with("The batch was undone"), "{error}");
+        assert!(Arc::ptr_eq(&a.session.active().unwrap().doc, &doc), "the whole batch is taken back");
+
+        run(&mut a, execute("shape.action", json!({"action": "url", "url": "mailto:info@example.com"}))).unwrap();
+        run(&mut a, execute("insert.hyperlink", json!({"slide": 1}))).unwrap();
+        assert_eq!(a.nora.changes.len(), 2, "an address and a slide stay");
+
+        // The person's own link to a file stays when Nora works around it.
+        a.run("shape.action", json!({"action": "url", "url": "C:\\x.pdf", "on": "hover"})).unwrap();
+        deselect(&mut a);
+        deselect(&mut a);
+        run(&mut a, type_text("A word from Nora", false)).unwrap();
+        assert_eq!(a.nora.changes.len(), 3);
     }
 }
