@@ -57,7 +57,9 @@ fn manifest(dir: &std::path::Path, manifest: &std::path::Path) -> Result<String,
         if EXCLUDED_FAMILIES.contains(family) {
             continue;
         }
-        if wasm && !matches!((*family, *style), ("BIZ UDPGothic", "Regular") | ("Inter", "Regular" | "Bold" | "Variable")) {
+        // //// Neoffice — Inter Italic too (417 KB): without it a browser build draws italic text upright. Neoffice's
+        // browser build is the editor people use, so its italics are worth the size.
+        if wasm && !matches!((*family, *style), ("BIZ UDPGothic", "Regular") | ("Inter", "Regular" | "Bold" | "Italic" | "Variable")) {
             continue;
         }
         let path = dir.join(file).canonicalize().map_err(|e| format!("{file}: {e}"))?;

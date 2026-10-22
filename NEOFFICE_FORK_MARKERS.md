@@ -166,6 +166,14 @@ their own `//// Neoffice — added file` header.
   looked as before. Upstream's v0.8 cures the same dashes another way (the Japanese face unhinted, with its own test);
   both stay: ours keeps Latin text in a Latin face.
 
+- **The browser build has the presentation fonts** (`.github/workflows/neoffice-web.yml`, `crates/fonts/build.rs`, from
+  2026-10-22): the web build checks out craft-fonts at the commit upstream's CI pins (`43913056`) and sets
+  `CRAFT_FONTS_DIR` (with `CRAFT_FONTS_REQUIRED`), as upstream's release does; before, it drew every presentation in
+  egui's Ubuntu Light, with no bold. What a wasm build embeds stays upstream's choice (Inter Regular and Bold, BIZ
+  UDPGothic Regular), plus Inter Italic (one marked line in `build.rs`), so italics are not drawn upright. Adobe's
+  families (Source Sans 3…) stay out, as upstream's AGENTS.md §1.1 has it: a file asking for Source Sans 3 draws in
+  Inter (`fontdb::substitutes`). The zip carries the fonts' licences (`packaging/common.sh`).
+
 - **Our product's name in our builds** (new file `crates/ui-egui/src/brand.rs`): `brand::name()` is
   `NEOFFICE_PRODUCT_NAME` when the build sets it (only the build step of `neoffice-web.yml`: `NeoPrés`), upstream's
   name otherwise, so upstream's builds and every test run are unchanged. DeckCraft has no string catalog, so the places

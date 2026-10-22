@@ -32,6 +32,17 @@ jobs:
       RUST_BACKTRACE: 1
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # //// Neoffice — the presentation fonts, at the craft-fonts commit upstream's own CI and release pin
+      # (ci.yml's CRAFT_FONTS_REF). Without them the browser build drew every presentation in egui's Ubuntu Light,
+      # with no bold, whatever font the file asked for. crates/fonts/build.rs picks what a wasm build embeds
+      # (Inter and the Japanese interface face, never Adobe's families) and packaging/common.sh puts their
+      # licences in the zip.
+      - name: Check out craft-fonts at the commit upstream's own CI uses (Latin presentation fonts)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: storytold/craft-fonts
+          ref: 43913056ce82a3fdad0ef69f6b88d1dc922a8104
+          path: craft-fonts
       - uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f # v1
         with:
           toolchain: stable
@@ -50,8 +61,12 @@ jobs:
       - name: Build and zip
         # //// Neoffice — our product's name in the interface (crates/ui-egui/src/brand.rs). On this step only:
         # the test runs (neoffice-ci.yml) build without it and keep upstream's name.
+        # //// Neoffice — and the fonts checked out above; a checkout that can't be read fails the build instead of
+        # quietly shipping one without fonts.
         env:
           NEOFFICE_PRODUCT_NAME: NeoPrés
+          CRAFT_FONTS_DIR: ${{ github.workspace }}/craft-fonts
+          CRAFT_FONTS_REQUIRED: "1"
         run: packaging/web/package.sh
       - name: Checksums
         run: |
