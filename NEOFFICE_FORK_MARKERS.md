@@ -166,6 +166,11 @@ their own `//// Neoffice — added file` header.
   looked as before. Upstream's v0.8 cures the same dashes another way (the Japanese face unhinted, with its own test);
   both stay: ours keeps Latin text in a Latin face.
 
+- **Upstream's fix for the browser build's start, taken early** (`crates/engine/src/recovery.rs`, `instance_id`):
+  upstream's `46dec4a` (#982), merged after v0.9.0 and shipped in v0.10.0. v0.9.0's browser build panics before its
+  first frame ("no pids on this platform": `std::process::id()` on wasm32); the browser clock stands in. The lines are
+  upstream's; the marker goes at the merge of v0.10.0.
+
 - **The browser build has the presentation fonts** (`.github/workflows/neoffice-web.yml`, `crates/fonts/build.rs`, from
   2026-10-22): the web build checks out craft-fonts at the commit upstream's CI pins (`43913056`) and sets
   `CRAFT_FONTS_DIR` (with `CRAFT_FONTS_REQUIRED`), as upstream's release does; before, it drew every presentation in

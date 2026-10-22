@@ -44,6 +44,14 @@ pub fn instance_id() -> u64 {
     *ID.get_or_init(|| {
         use std::hash::{BuildHasher, Hasher};
         let mut h = std::collections::hash_map::RandomState::new().build_hasher();
+        // //// Neoffice — upstream's 46dec4a (#982), merged after the v0.9.0 we took and shipped in v0.10.0, taken early:
+        // without it the browser build panics before its first frame ("no pids on this platform"). Drop this marker at
+        // the merge of v0.10.0, which has the same lines.
+        // No PIDs and no std::time on wasm (`std::process::id()` and
+        // `SystemTime::now()` panic there): the browser clock stands in.
+        #[cfg(target_arch = "wasm32")]
+        h.write_u64(js_sys::Date::now() as u64);
+        #[cfg(not(target_arch = "wasm32"))]
         h.write_u32(std::process::id());
         #[cfg(not(target_arch = "wasm32"))]
         if let Ok(d) = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
