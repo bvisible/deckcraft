@@ -1723,14 +1723,14 @@ mod tests {
             .edit(|doc, sel| {
                 let placeholder = |idx| Some(deckcraft_model::Placeholder { kind: PhType::Obj, idx, ..Default::default() });
                 let picture = Shape {
-                    id: ShapeId(doc.alloc_id()),
+                    id: ShapeId(doc.alloc_id().expect("an id is free")),
                     ph: placeholder(10),
                     kind: ShapeKind::Picture { fill: Default::default() },
                     xfrm: Some(deckcraft_model::Xfrm::new(60.0, 120.0, 200.0, 120.0)),
                     ..Default::default()
                 };
                 let table = Shape {
-                    id: ShapeId(doc.alloc_id()),
+                    id: ShapeId(doc.alloc_id().expect("an id is free")),
                     ph: placeholder(11),
                     kind: ShapeKind::Table(deckcraft_model::Table::new(2, 2, 300.0, 30.0)),
                     xfrm: Some(deckcraft_model::Xfrm::new(300.0, 120.0, 300.0, 60.0)),
