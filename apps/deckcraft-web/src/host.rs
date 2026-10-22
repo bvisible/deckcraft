@@ -55,6 +55,8 @@ struct Hosted {
     failures: RefCell<Vec<(Option<u64>, String, String)>>,
     /// The blank presentation the editor started on until the page sends its own (document uid).
     placeholder: Cell<Option<u64>>,
+    /// Files the page sent (`deckcraft:open`), opened at the start of the next frame: (file name, bytes).
+    arrived: RefCell<Vec<(String, Vec<u8>)>>,
 }
 
 impl Hosted {
@@ -96,6 +98,20 @@ impl Hosted {
         };
         if !ok {
             self.failures.borrow_mut().push((uid, name.to_string(), error.to_string()));
+        }
+    }
+
+    /// The page sent a file to edit. It opens at the start of the next frame ([`Hosted::open_arrived`]).
+    fn receive(&self, name: String, bytes: Vec<u8>) {
+        self.arrived.borrow_mut().push((name, bytes));
+    }
+
+    /// Before each frame: the files the page sent open, as a file dropped on the window does. They don't
+    /// go through `SlideApp::run`, where a hosting page's editor refuses to open presentations itself.
+    fn open_arrived(&self, app: &mut SlideApp) {
+        let arrived = std::mem::take(&mut *self.arrived.borrow_mut());
+        for (name, bytes) in arrived {
+            app.open_or_insert_bytes(&name, &bytes);
         }
     }
 
@@ -197,7 +213,7 @@ pub use bridge::Bridge;
 mod bridge {
     use std::cell::Cell;
 
-    use deckcraft_ui_egui::{Inbox, Services, SlideApp};
+    use deckcraft_ui_egui::{Services, SlideApp};
     use wasm_bindgen::{JsCast as _, JsValue, closure::Closure};
 
     use super::{Hosted, Rc};
@@ -238,8 +254,8 @@ mod bridge {
 
         /// Sends every file the editor would download to the parent, hands it the presentations
         /// Save and Save As produce, and hears its files and its answers to the saves.
-        pub fn connect(&self, services: &mut Services, inbox: Inbox, ctx: egui::Context) {
-            self.listen(inbox, ctx);
+        pub fn connect(&self, services: &mut Services, ctx: egui::Context) {
+            self.listen(ctx);
             let bridge = self.clone();
             services.download = Some(Box::new(move |name: &str, bytes: &[u8]| {
                 if let Err(e) = bridge.post_save(name, bytes) {
@@ -268,8 +284,9 @@ mod bridge {
             self.send(&[("type", "deckcraft:failed".into()), ("error", error.into())]);
         }
 
-        /// Before each frame.
+        /// Before each frame: the page's files open, and what it refused to store shows.
         pub fn before_frame(&self, app: &mut SlideApp) {
+            self.hosted.open_arrived(app);
             self.hosted.settle(app);
         }
 
@@ -289,7 +306,7 @@ mod bridge {
             self.parent.post_message_with_transfer(&message, &self.origin, &js_sys::Array::of1(&buffer)).map_err(|e| reason(&e))
         }
 
-        fn listen(&self, inbox: Inbox, ctx: egui::Context) {
+        fn listen(&self, ctx: egui::Context) {
             let parent = self.parent.clone();
             let origin = self.origin.clone();
             let hosted = self.hosted.clone();
@@ -302,7 +319,7 @@ mod bridge {
                     Some("deckcraft:open") => {
                         let name = string(&data, "name").filter(|n| !n.trim().is_empty()).unwrap_or_else(|| "Presentation.pptx".to_string());
                         let Some(bytes) = bytes(&data) else { return };
-                        inbox.lock().unwrap_or_else(|e| e.into_inner()).push((name, bytes));
+                        hosted.receive(name, bytes);
                     }
                     Some("deckcraft:saved") => {
                         let name = string(&data, "name").unwrap_or_default();
@@ -631,6 +648,29 @@ mod tests {
         assert_eq!(app.session.documents().len(), 1);
         assert_eq!(active(&app).opened_from.as_deref(), Some("Quarterly.pptx"));
         assert_eq!(active(&app).doc.slides.len(), 3);
+    }
+
+    #[test]
+    fn the_page_file_opens_in_an_editor_whose_page_opens_the_presentations() {
+        let (mut app, hosted, _) = editor();
+        app.run("file.new", json!({})).unwrap();
+        app.services.host_owns_documents = true;
+        hosted.started_on(&app);
+        // The editor itself may not open a presentation beside the page's...
+        let data = deckcraft_engine::cmd::base64_encode(&deck("pptx"));
+        assert!(app.run("file.openBytes", json!({"name": "Other.pptx", "data": data})).is_err());
+        // ...but the file the page sends opens at the next frame, and the blank one makes way.
+        hosted.receive("Quarterly.pptx".into(), deck("pptx"));
+        assert_eq!(app.session.documents().len(), 1, "nothing opens before the frame");
+        hosted.open_arrived(&mut app);
+        assert_eq!(app.session.documents().len(), 2);
+        assert!(!hosted.after_frame(&mut app));
+        assert_eq!(app.session.documents().len(), 1);
+        assert_eq!(active(&app).opened_from.as_deref(), Some("Quarterly.pptx"));
+        assert_eq!(active(&app).doc.slides.len(), 3);
+        // Opened once: a second frame opens nothing more.
+        hosted.open_arrived(&mut app);
+        assert_eq!(app.session.documents().len(), 1);
     }
 
     #[test]

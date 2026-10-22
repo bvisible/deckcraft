@@ -10,13 +10,14 @@ At the next upstream merge, `grep -rn "////"` in the source plus this file give 
 picture of what is ours and why.
 
 - **Upstream**: `storytold/deckcraft`, branch `main`.
-- **Base of the divergence**: `688c7ef592c901ca4541c25e210c1b302e4dc066`, the tag `v0.6.1`, where `version-15` was cut on 2026-10-13.
+- **Base of the divergence**: `fe510bdac68118f2c9a714e69d0ff572e3f9a0c7`, the tag `v0.9.0`, merged on 2026-10-22
+  (before: `688c7ef592c901ca4541c25e210c1b302e4dc066`, the tag `v0.6.1`, where `version-15` was cut on 2026-10-13).
   Move it at each upstream merge. The check works it out itself (the common ancestor with
   upstream's `main`), so this line is for the reader.
 
 ## What the fork adds
 
-Three workflow files and the features below, all marked in place. The workflow files are new files that carry
+Four workflow files and the features below, all marked in place. The workflow files are new files that carry
 their own `//// Neoffice — added file` header.
 
 - `.github/workflows/neoffice-web.yml`: builds the browser version on a GitHub runner, started by
@@ -27,6 +28,9 @@ their own `//// Neoffice — added file` header.
 - `.github/workflows/neoffice-ci.yml`: runs upstream's own quality gate, `cargo xtask ci`, on a
   GitHub runner (by hand, or on a push that touches code), because the maintainer's Mac has too
   little disk to run it for every change.
+- `.github/workflows/neoffice-nora-catalogue.yml`: exports, by hand at the revision the Suite pins, the editor's
+  command list (`list_commands` of `deckcraft-cli mcp`) and the Nora pane's verdict on each, for the catalogue Nora
+  reads on the Neoffice server.
 - **The host bridge of the browser build** (new file `apps/deckcraft-web/src/host.rs`; marked changes
   in `apps/deckcraft-web/src/web.rs`, `apps/deckcraft-web/src/main.rs`, the web-sys features of
   `apps/deckcraft-web/Cargo.toml`, `crates/ui-egui/src/lib.rs` and `crates/engine/src/lib.rs`,
@@ -50,25 +54,36 @@ their own `//// Neoffice — added file` header.
     file for a template or a show.
   - In host mode the editor starts on a blank presentation (what `?blank` opens), not on the sample
     deck, and the blank one makes way when a file opened from bytes (the page's) is there.
+  - The page's file (`deckcraft:open`) waits in the bridge and opens at the start of the next frame through
+    `SlideApp::open_or_insert_bytes`, as a file dropped on the window does. Since v0.8 upstream's `Inbox` carries
+    `InboxEvent`s matched to a request the editor began (`begin_external_file`), which a message from the page
+    has none of.
   - The interface is English only (DeckCraft has no string catalog yet, see
     `docs/localization-parity.md`), so the status line "Couldn't save {name}: {error}" has no French.
     Its French, for when there is a catalog: "Impossible d'enregistrer {name} : {error}".
   - Drop the bridge when upstream ships its own for DeckCraft, keeping `deckcraft:saved`, the
     PowerPoint save and the blank start.
 
-- **No Discord link in the About dialog nor on the start screen** (`crates/ui-egui/src/dialogs.rs`, two marked places):
-  the links to upstream's community are not shown, for everyone who uses this build. The MCP server's instructions and
+- **No Discord link in the About dialog nor in the File tab** (`crates/ui-egui/src/dialogs.rs`, the About dialog;
+  `crates/ui-egui/src/backstage.rs`, its Home page, which is also the start screen, and its Account page): the links to
+  upstream's community are not shown, for everyone who uses this build. The MCP server's instructions and
   the `app.links` command list the project's addresses for agents, and stay as upstream has them.
 
 - **A hosting page opens the presentations** (`Services::host_owns_documents`, set by `apps/deckcraft-web/src/web.rs` after
   the editor's own blank start, so only when a page frames the editor with `?host=parent`): the editor does not bring another presentation in beside
-  the page's, close it or show its start screen. `file.new`, `file.close`, `file.open`, `file.openBytes`,
-  `app.openDialog` and `app.home` are refused with a status message (`run` in `crates/ui-egui/src/lib.rs`), the start
-  screen says that the page gives the presentation (`dialogs.rs`), the title bar has no Home button (`ribbon.rs`), and
-  a presentation dropped on the editor is not taken (`opens_as_presentation`, asked by `apps/deckcraft-web/src/web.rs`);
-  the file the page hands over opens through the inbox, which does not come through `run`. Three tests in
-  `crates/ui-egui/src/lib.rs`. The message is English only, like the rest of the interface. Every other build behaves
-  as before.
+  the page's, close it or show its start screen. `file.new`, `file.close`, `file.open`, `file.openBytes`, `file.adopt`,
+  `file.recovery.open`, `app.openDialog`, `app.home` and `app.closePresentation` (`hidden_from_a_host`), and
+  `app.backstage` asked for Home, New or Open (`backstage_leaves_the_page`), are refused with a status message (`run` in
+  `crates/ui-egui/src/lib.rs`); so is `close_presentation`, which Cmd+W, the File menu and the File tab call without
+  `run`. The File tab (upstream's backstage since v0.8, `crates/ui-egui/src/backstage.rs`) opens on Info, never on Home,
+  New or Open (`open_backstage`), and its side menu has no Home, New, Open nor Close (`entries_for`); its Home page,
+  the start screen while the page's file has not arrived, only says that the page gives the presentation, and Save As
+  says Save, not Download. The Quick Access Toolbar (upstream's since v0.8, `qat.rs`, which has Home by default) leaves
+  out Home, New and Open, in the bar and in its Customize menu, without changing the person's toolbar. The command
+  palette does not list them (`menus.rs`). A presentation dropped on the editor is not taken (`opens_as_presentation`,
+  asked by `apps/deckcraft-web/src/web.rs`, which cancels the request it began). The file the page hands over opens
+  without `run` (see the bridge). Five tests in `crates/ui-egui/src/lib.rs` and one in `apps/deckcraft-web/src/host.rs`.
+  The words are English only, like the rest of the interface. Every other build behaves as before.
 
 - **The account button of the title bar** (new file `crates/ui-egui/src/account.rs`, with its tests; one marked line in
   `lib.rs` and one in `ribbon.rs`'s `title_bar`): at the right end of the title bar, the button WordCraft has there, so
@@ -112,7 +127,9 @@ their own `//// Neoffice — added file` header.
     `edit.redo`: a batch that undoes would take back their work, and the pane's Undo theirs as Nora's), their clipboard
     (`edit.copy`, `edit.cut`, `edit.paste` with `edit.pasteText`: every open presentation shares it) and media playback, which decodes a file's audio or video (`media.play`, `media.seek`,
     `media.toggle`, `media.posterFrame`), and except any command with a parameter naming a file (`path`, `file`,
-    `filename`, `folder`, `directory`…, at any depth; `dir` is a direction in DeckCraft). SelectText: the n-th occurrence
+    `filename`, `folder`, `directory`…, at any depth; `dir` is a direction in DeckCraft). The prefixes also refuse
+    upstream's `edit.pasteSpecial` (the clipboard) and `view.notesMaster` (under the interface's `view.notes`); the Slide and
+    Handout Masters stay Nora's. SelectText: the n-th occurrence
     on the current slide (its shapes in order, a table cell by cell, then its notes), through `text.edit` and
     `text.select`. TypeText: into the text being edited, else into the one selected shape that holds text (its text
     replaced, as typing does), else into the slide's empty body or content placeholder (one that holds text, not a picture,
@@ -121,7 +138,8 @@ their own `//// Neoffice — added file` header.
     master draw), across the middle where no strip has room (`insert.textBox`, then `text.insert`), with AutoCorrect and
     smart quotes off while Nora types. RenderPage: `file.render` of that slide number. Save: `file.save`, so a
     presentation without a file goes through the app's Save As (the hosting page, a dialog, a download). Nora's actions
-    wait, in their order, while the pointer drags something on the slide or a slide in the thumbnails or the sorter.
+    wait, in their order, while the pointer drags something on the slide, a slide in the thumbnails or the sorter, a
+    whole section in the sorter or an object's row in the Selection pane (the last two are upstream's since v0.8).
   - **A failed action leaves the presentation as it was:** its document, selection and undo history (the redo steps
     included) go back to a snapshot taken before it. **Undo** (the pane's button) takes back Nora's last change whole,
     counting the undo steps it left even when the history is full, and refuses when the presentation changed after it
@@ -132,26 +150,33 @@ their own `//// Neoffice — added file` header.
     system or the browser prefers one of them (`sys-locale`, `DECKCRAFT_LANGUAGE` first), English otherwise. DeckCraft has
     no catalog, so they live in Neoffice's own table, `neoffice_i18n.rs`; French reuses the wording of WordCraft's Nora
     pane. The rest of the Preferences dialog stays English. Errors that come from the engine are its own, in English.
+    Since v0.8 the Preferences dialog has Cancel, which puts back what it opened with: the Nora switch is in that snapshot
+    (`preferences_snapshot`, `restore_preferences`).
 
 - **The browser build reads its address's flags by name** (`apps/deckcraft-web/src/web.rs`, `has_param`, with
   `URLSearchParams` as `host.rs` reads its own): upstream looked for `webgl`, `blank` and `show` anywhere in the address's
   text, so a host name (`?nora=https://showroom…`) or a name the page passes (`?author=`) started the slide show over the
   editor. Drop it when upstream reads them by name.
 
-- **The interface's Latin font comes before its Japanese one** (`crates/ui-egui/src/theme.rs`, `install_fonts`, with a
-  test): Inter when craft-fonts has it, else egui's Ubuntu Light, then BIZ UDPGothic and Noto Sans Arabic for their
-  scripts. Upstream put the Japanese face first when craft-fonts has no Inter (this Mac's checkout has none); its dashes
-  (U+2013, U+2014) are hairlines 0.05 em thick that vanish at interface sizes, so the em dash didn't show in Nora's pane
-  nor in the Outline view. Builds with Inter, and builds without craft-fonts, looked as before.
+- **The interface's Latin font comes before its Japanese one** (`crates/ui-egui/src/theme.rs`, `font_definitions`, which
+  `install_fonts` uses since v0.8, with a test): Inter when craft-fonts has it, else egui's Ubuntu Light, then BIZ
+  UDPGothic and Noto Sans Arabic for their scripts. Upstream put the Japanese face first when craft-fonts has no Inter
+  (this Mac's checkout has none); its dashes (U+2013, U+2014) are hairlines 0.05 em thick that vanish at interface sizes,
+  so the em dash didn't show in Nora's pane nor in the Outline view. Builds with Inter, and builds without craft-fonts,
+  looked as before. Upstream's v0.8 cures the same dashes another way (the Japanese face unhinted, with its own test);
+  both stay: ours keeps Latin text in a Latin face.
 
 - **Our product's name in our builds** (new file `crates/ui-egui/src/brand.rs`): `brand::name()` is
   `NEOFFICE_PRODUCT_NAME` when the build sets it (only the build step of `neoffice-web.yml`: `NeoPrés`), upstream's
   name otherwise, so upstream's builds and every test run are unchanged. DeckCraft has no string catalog, so the places
   that show the app's name call `brand::name()`, `brand::about()` or `brand::label()`: the title bar without a
-  presentation (`ribbon.rs`), the About dialog and its title, the start screen, the quit dialog's title (`dialogs.rs`),
-  the Help menu and the command palette (`menus.rs`), the Presenter View's title (`show.rs`), a status message
-  (`lib.rs`) and the page that failed to start (`apps/deckcraft-web/src/web.rs`); `crates/engine/src/cmd/file.rs`,
-  below the interface, applies the same rule to its "not a presentation … can read" error. The page title and the
+  presentation (`ribbon.rs`), the About dialog and its title, the quit dialog's title, the Find dialog's "can't find"
+  (`dialogs.rs`), the File tab's Home page (the start screen), its Account page and its Print page (`backstage.rs`),
+  the Help menu and the command palette (`menus.rs`), the Presenter View's title (`show.rs`), two status messages
+  (`lib.rs`: a file it can't open, a format it can't export) and the page that failed to start
+  (`apps/deckcraft-web/src/web.rs`); `crates/engine/src/cmd/file.rs`, below the interface, applies the same rule
+  (`product_name`) to its "not a presentation … can read" and "password-protected" errors, and `cmd/format.rs` to
+  `font.add`'s. The page title and the
   loading text are ours in `apps/deckcraft-web/index.html`. The `DeckCraft` theme, storage folders, `deckcraft:*`
   messages, `ai.storyteller.*`, the file format's generator, the licence line and the native app keep upstream's name.
 
@@ -159,4 +184,13 @@ their own `//// Neoffice — added file` header.
 
 - `Cargo.lock`: the Nora pane's dependencies, `craft-nora` and `craft-nora-ui` from `bvisible/craft-libs` (git, revision
   `adbcef6c286b6bcd264cc91fbf50dc3f42d60e5a`, the one WordCraft uses) and `sys-locale` 0.3.2 (the person's preferred
-  languages). Nothing else moved. At an upstream merge, take upstream's lock and let cargo add these back.
+  languages). Nothing else moved. At an upstream merge, take upstream's lock and let cargo add these back (at the v0.9.0
+  merge they were added by hand, the three packages and their three lines under `deckcraft-ui-egui`, and checked by the
+  CI's `--locked` builds).
+
+## Upstream files left as they are
+
+- `.github/workflows/nix.yml` and `.github/workflows/windows-arm64.yml` (upstream's, since v0.8): disabled on this fork
+  through the API, like upstream's other workflows (they need upstream's signing, Nix's action, and a weekly Windows
+  runner). `.github/dependabot.yml`: Dependabot's version updates do not run on a fork unless someone turns them on,
+  which this fork does not do (they would open pull requests; this fork has one branch).

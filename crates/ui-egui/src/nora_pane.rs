@@ -63,7 +63,8 @@ const FILE_KEYS: &[&str] = &["path", "paths", "file", "files", "filename", "fold
 /// Engine commands that are the person's rather than the presentation's: the slide show and the switch to another open
 /// presentation (the interface); their undo history (`edit.undo` and `edit.redo` take back the person's own work, and
 /// the pane's Undo would then take back theirs as Nora's); their clipboard (`edit.copy`, `edit.cut`, and `edit.paste`
-/// with `edit.pasteText`: every open presentation shares it, so Nora would read what they copied elsewhere); and the playback
+/// with `edit.pasteText` and `edit.pasteSpecial`: every open presentation shares it, so Nora would read what they copied
+/// elsewhere); and the playback
 /// of a presentation's media, which decodes a file's audio or video (`media.play`, `media.seek`, `media.toggle`, and
 /// `media.posterFrame`, which decodes a frame): only the person's click does that.
 const THE_PERSON_S: &[&str] = &[
@@ -220,11 +221,15 @@ fn deliver_answers(app: &mut SlideApp) -> Vec<Output> {
     answers.into_iter().flat_map(|answer| app.nora.session.handle(Input::Http(answer))).collect()
 }
 
-/// Whether the pointer is in the middle of changing the presentation: a drag on the slide, or of a slide in the
-/// thumbnails or the slide sorter. Nora's actions wait for it: played now, they would become part of the person's
-/// gesture and its one undo step, or move the slides it drags by their index.
+/// Whether the pointer is in the middle of changing the presentation: a drag on the slide, of a slide in the
+/// thumbnails or the slide sorter, of a whole section in the sorter, or of an object's row in the Selection pane.
+/// Nora's actions wait for it: played now, they would become part of the person's gesture and its one undo step, or
+/// move the slides or the object it drags by their index.
 fn pointer_busy(app: &SlideApp) -> bool {
-    app.thumb_drag.is_some() || app.session.active().is_some_and(|d| d.interaction.is_some())
+    app.thumb_drag.is_some()
+        || app.sorter.drag.is_some()
+        || app.selpane.drag.is_some()
+        || app.session.active().is_some_and(|d| d.interaction.is_some())
 }
 
 /// The actions that waited for the pointer, once it let go.
@@ -1527,7 +1532,9 @@ mod tests {
             assert_eq!(policy.check(id), Decision::Deny, "{id} is the interface's");
         }
         // No other editing command of the engine is caught by a prefix: only files, windows, the slide show, the person's
-        // history and clipboard, and media playback are refused.
+        // history and clipboard (Paste Special too: `edit.paste` covers it), and media playback are refused, and the Notes
+        // Master view, which the prefix of the interface's `view.notes` (the Notes pane) covers: the Slide and Handout
+        // Masters stay Nora's.
         let theirs = [
             "show.fromStart",
             "show.fromCurrent",
@@ -1537,6 +1544,8 @@ mod tests {
             "edit.cut",
             "edit.paste",
             "edit.pasteText",
+            "edit.pasteSpecial",
+            "view.notesMaster",
             "media.play",
             "media.seek",
             "media.toggle",
@@ -1607,6 +1616,30 @@ mod tests {
         let outputs = released(&mut a);
         perform(&mut a, outputs, &ctx);
         assert_eq!(slides(&a), 1, "played once the drag ended");
+    }
+
+    /// A section dragged in the slide sorter, or an object's row in the Selection pane, moves things by their index
+    /// too: Nora's actions wait for those drags as well.
+    #[test]
+    fn nora_waits_while_the_person_drags_a_section_or_a_selection_pane_row() {
+        let ctx = egui::Context::default();
+        for section in [true, false] {
+            let mut a = deck();
+            if section {
+                a.sorter.drag = Some((0, 1));
+            } else {
+                a.selpane.drag = Some((1, None));
+            }
+            let before = Arc::clone(&a.session.active().unwrap().doc);
+            perform(&mut a, vec![Output::Document(DocumentCall { id: 1, kind: execute("slide.delete", json!({"index": 0})) })], &ctx);
+            assert!(Arc::ptr_eq(&a.session.active().unwrap().doc, &before), "nothing moves under the person's drag (section {section})");
+            assert!(released(&mut a).is_empty(), "still dragging (section {section})");
+            a.sorter.drag = None;
+            a.selpane.drag = None;
+            let outputs = released(&mut a);
+            perform(&mut a, outputs, &ctx);
+            assert_eq!(slides(&a), 1, "played once the drag ended (section {section})");
+        }
     }
 
     /// Actions that arrive in the frame the pointer lets go play after the ones that waited for it, in their order.

@@ -10,12 +10,12 @@
 <h1 align="center">DeckCraft</h1>
 
 <p align="center">
-  <b>Presentations and slide shows; an open-source, clean-room reimplementation of Microsoft PowerPoint, rebuilt in pure Rust.</b>
+  <b>Presentations and slide shows; an open-source, modern presentation and slide designer, built in pure Rust.</b>
 </p>
 
 <p align="center">
   Build decks with themes, layouts, shapes, pictures, tables, charts, transitions and animations,
-  open and save PowerPoint files, and present them full screen. Native on macOS, Windows, Linux
+  open and save .pptx presentation files, and present them full screen. Native on macOS, Windows, Linux
   and FreeBSD, and in the browser. Every button is also a command that the CLI and AI agents
   (through MCP) can drive.
 </p>
@@ -24,7 +24,7 @@
   <img alt="Status: early development" src="https://img.shields.io/badge/status-early%20development-f26b1d?style=flat-square">
   <img alt="License: MIT OR Apache-2.0" src="https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue?style=flat-square">
   <img alt="Written in Rust" src="https://img.shields.io/badge/written%20in-Rust-b7410e?style=flat-square">
-  <img alt="Platforms" src="https://img.shields.io/badge/platforms-macOS%20·%20Windows%20·%20Linux%20·%20BSD%20·%20Web-555?style=flat-square">
+  <img alt="Platforms" src="https://img.shields.io/badge/platforms-macOS%20%C2%B7%20Windows%20%C2%B7%20Linux%20%C2%B7%20BSD%20%C2%B7%20Web-555?style=flat-square">
 </p>
 
 <p align="center">
@@ -74,8 +74,8 @@ Today it can:
   audio and video (MP3, AAC, FLAC, ALAC, Ogg, Opus, WAV, AIFF; H.264, HEVC, VP9, AV1).
 - **Present**: transitions (including Morph), entrance/emphasis/exit and motion-path animations,
   by-paragraph builds, full-screen slide show, presenter view, pen, rehearse timings, media playback.
-- **Exchange files**: open and save PowerPoint `.pptx`, export PDF (slides, notes pages, handouts
-  with selectable text), PNG/JPEG and outlines. Unsaved work is kept by AutoRecover.
+- **Exchange files**: open and save .pptx presentations, export PDF (slides, notes pages, handouts
+  with selectable text), PNG/JPEG, an animated GIF of the deck and outlines. Unsaved work is kept by AutoRecover.
 - **Automate**: 200+ commands with undo, all scriptable from the CLI, a JSON control channel and an
   MCP server for AI agents.
 
@@ -96,6 +96,9 @@ Today it can:
 </p>
 
 ## Getting started
+
+PDF export uses the shared `craft-pdf` writer with import features disabled. See
+[`crates/pdf/README.md`](crates/pdf/README.md) for the dependency and validation requirements.
 
 ```sh
 git clone https://github.com/storytold/deckcraft
@@ -129,7 +132,7 @@ settings directory, beside `ui.json` and `prefs.json` (Linux `~/.config/deckcraf
 `$XDG_CONFIG_HOME/deckcraft/logs/`; macOS `~/Library/Application Support/DeckCraft/logs/`; Windows
 `%APPDATA%\DeckCraft\logs\`). A start from a desktop menu or the Dock has no terminal, so this file
 is what to attach to a bug report: the crash guard's panic report, a failed crash-recovery save,
-PowerPoint parts skipped on import and audio output problems land there. Each launch moves the
+Parts skipped on import and audio output problems land there. Each launch moves the
 previous log to `deckcraft.1.log` (and that one to `deckcraft.2.log`), so the log of a run that
 crashed survives the next start. The file stops growing at 16 MiB. `--version` writes no file.
 
@@ -150,12 +153,13 @@ deckcraft-cli commands format.          # list commands
 deckcraft-cli run --sample --cmd 'slide.new={"layout":"titleOnly","title":"Hello"}' --save hello.deckcraft
 deckcraft-cli mcp                       # MCP server over stdio (headless)
 deckcraft-cli mcp --connect 7990        # drive the running app (deckcraft --control 7990)
+deckcraft-cli mcp --automation-read-root DIR --automation-write-root DIR   # confine the headless agent to folders
 ```
 
 ## Roadmap
 
-DeckCraft is in **alpha**. It covers **79% of PowerPoint's features by breadth** (92% of the core
-ones, measured) and is about **55% of the way to replacing PowerPoint for real work** (estimated).
+DeckCraft is in **alpha**. It covers **84% of the features tracked in [`docs/target-app-parity.md`](docs/target-app-parity.md) by breadth** (92% of the core
+ones, measured) and is about **55% ready for real work across all tracked capabilities** (estimated).
 See [ROADMAP.md](ROADMAP.md) for the stage, numbers by dimension and what's next,
 [docs/target-app-parity.md](docs/target-app-parity.md) for the full assessment,
 [docs/gaps.md](docs/gaps.md) for every known shortfall and
@@ -189,6 +193,10 @@ Remove-Item Env:WGPU_BACKEND                     # restore the default for later
 
 An explicit `gl` override can bring the driver crash back on affected systems. The macOS, Linux
 and web backend defaults are unchanged.
+
+DirectX 12 shaders are compiled with FXC, which is part of Windows, so no `dxcompiler.dll` or
+`dxil.dll` is needed ("Parent device is lost" at start, #153). `$env:WGPU_DX12_COMPILER = "dxc"`
+(or `"auto"`) selects wgpu's DXC handling again for troubleshooting.
 
 ### macOS
 
@@ -271,14 +279,12 @@ Bundled fonts, icons, images and other assets keep their own open licenses; each
 with its author, source and license in [ATTRIBUTION.md](ATTRIBUTION.md).
 
 DeckCraft's themes, layouts, shape geometry, icons and sample decks are original work, drawn or
-generated in code; no Microsoft artwork, fonts, themes or templates are used.
+generated in code; no proprietary artwork, fonts, themes or templates are used.
 
 The ArtCraft name, wordmark and logos in [`docs/brand/`](docs/brand/) are trademarks of the
 ArtCraft Team and are not covered by this license. They may be used only unmodified, and only as
 part of this repository and DeckCraft, under [`docs/brand/LICENSE-brand.txt`](docs/brand/LICENSE-brand.txt).
 Forks and modified versions must remove them.
-
-<sub>Microsoft and PowerPoint are trademarks of the Microsoft group of companies. Adobe, Photoshop, Illustrator, Premiere Pro, Lightroom, Acrobat, After Effects and InDesign are trademarks or registered trademarks of Adobe Inc. in the United States and/or other countries. DeckCraft is an independent, open-source project and is not affiliated with, sponsored by or endorsed by Microsoft Corporation or Adobe Inc.; these names are used only to describe the workflows it is compatible with.</sub>
 
 <p align="center">
   <a href="https://getartcraft.com/"><img alt="ArtCraft" src="docs/brand/artcraft-mark.svg" width="28"></a><br>
