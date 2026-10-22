@@ -51,7 +51,12 @@ their own `//// Neoffice — added file` header.
     a show as a show (the engine writes their own content types since v0.8); one opened from
     `x.deckcraft` stays a `.deckcraft`; one made in the editor is `<title>.pptx`. (Without the bridge
     the web build downloads `<title>.deckcraft`, DeckCraft's own zip, whatever was opened.) In host mode
-    the File tab's Save As goes to the page the same way, whatever type is chosen there.
+    the File tab's Save As offers the page's format only (`save_as_types` in `backstage.rs`): the page keeps one
+    file, and another type would reach it under another name, a second document beside the one the editor holds
+    and marks saved. Copies in other formats are the Export page's.
+  - **A file the page sent that can't be opened is said back** (`deckcraft:failed {error}`, the message the contract
+    has for an editor that couldn't start): no bytes to read, a name that isn't a presentation's (it is not inserted
+    into the presentation the editor has), or a file the editor can't read. The editor stays on what it had.
   - In host mode the editor starts on a blank presentation (what `?blank` opens), not on the sample
     deck, and the blank one makes way when a file opened from bytes (the page's) is there.
   - The page's file (`deckcraft:open`) waits in the bridge and opens at the start of the next frame through
@@ -139,8 +144,9 @@ their own `//// Neoffice — added file` header.
     master draw), across the middle where no strip has room (`insert.textBox`, then `text.insert`), with AutoCorrect and
     smart quotes off while Nora types. RenderPage: `file.render` of that slide number. Save: `file.save`, so a
     presentation without a file goes through the app's Save As (the hosting page, a dialog, a download). Nora's actions
-    wait, in their order, while the pointer drags something on the slide, a slide in the thumbnails or the sorter, a
-    whole section in the sorter or an object's row in the Selection pane (the last two are upstream's since v0.8).
+    wait, in their order, while the pointer drags something on the slide (moving, resizing, or a tool's drag: drawing a
+    shape, a text box, ink or a freeform, selecting text, a guide), a slide in the thumbnails or the sorter, a whole
+    section in the sorter or an object's row in the Selection pane (the last two are upstream's since v0.8).
   - **A failed action leaves the presentation as it was:** its document, selection and undo history (the redo steps
     included) go back to a snapshot taken before it. **Undo** (the pane's button) takes back Nora's last change whole,
     counting the undo steps it left even when the history is full, and refuses when the presentation changed after it

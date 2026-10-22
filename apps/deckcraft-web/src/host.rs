@@ -21,7 +21,9 @@
 //!   parent that never answers leaves the presentation saved once the file has been handed over, as
 //!   upstream's bridges do.
 //! - `deckcraft:dirty` (to the parent): `{ dirty }` whenever unsaved changes appear or go away.
-//! - `deckcraft:failed` (to the parent): `{ error }` when the app couldn't start.
+//! - `deckcraft:failed` (to the parent): `{ error }` when the app couldn't start, or couldn't open a file the
+//!   page sent with `deckcraft:open` (no bytes to read, a name that isn't a presentation's, or a file the editor
+//!   can't read). The editor then stays on what it had: the blank presentation, or the page's earlier file.
 //!
 //! Only the parent window on the page's own origin is heard or answered, and there is no bridge at
 //! all unless a page of the same origin frames the editor. In host mode the page starts on a blank
@@ -57,6 +59,8 @@ struct Hosted {
     placeholder: Cell<Option<u64>>,
     /// Files the page sent (`deckcraft:open`), opened at the start of the next frame: (file name, bytes).
     arrived: RefCell<Vec<(String, Vec<u8>)>>,
+    /// Why files the page sent could not be opened, for the page (`deckcraft:failed`), before the next frame.
+    open_failures: RefCell<Vec<String>>,
 }
 
 impl Hosted {
@@ -106,13 +110,44 @@ impl Hosted {
         self.arrived.borrow_mut().push((name, bytes));
     }
 
-    /// Before each frame: the files the page sent open, as a file dropped on the window does. They don't
-    /// go through `SlideApp::run`, where a hosting page's editor refuses to open presentations itself.
-    fn open_arrived(&self, app: &mut SlideApp) {
+    /// The page sent `deckcraft:open` with nothing the editor can read as bytes. The page hears it before the next
+    /// frame ([`Hosted::open_arrived`]).
+    fn unreadable(&self, name: &str, why: &str) {
+        self.open_failures.borrow_mut().push(could_not_open(name, why));
+    }
+
+    /// Before each frame: the files the page sent open, as a file dropped on the window does. They don't go through
+    /// `SlideApp::run`, where a hosting page's editor refuses to open presentations itself. Returns what the page
+    /// should hear went wrong (`deckcraft:failed`): bytes it didn't send, a name that isn't a presentation's (the
+    /// editor would have inserted it into the presentation it has, as a dropped picture), a file the editor can't
+    /// read. The person sees the same words in the status bar or the notice the editor shows.
+    fn open_arrived(&self, app: &mut SlideApp) -> Vec<String> {
         let arrived = std::mem::take(&mut *self.arrived.borrow_mut());
         for (name, bytes) in arrived {
+            if !deckcraft_ui_egui::opens_as_presentation(&name) {
+                let why = could_not_open(&name, "it is not a presentation (.pptx, .potx, .ppsx or .deckcraft)");
+                app.set_status(why.clone());
+                self.open_failures.borrow_mut().push(why);
+                continue;
+            }
+            let documents = app.session.documents().len();
+            let toast = app.toast.as_ref().map(|t| (t.text.clone(), t.at));
+            let status = app.status.clone();
             app.open_or_insert_bytes(&name, &bytes);
+            if app.session.documents().len() > documents {
+                continue;
+            }
+            // Not opened: the editor said why in a notice (`file.openBytes`) or in the status bar.
+            let said = app
+                .toast
+                .as_ref()
+                .filter(|t| toast.as_ref() != Some(&(t.text.clone(), t.at)))
+                .map(|t| t.text.clone())
+                .or_else(|| app.status.clone().filter(|now| status.as_ref() != Some(now)).map(|(message, _)| message));
+            let why = said.unwrap_or_else(|| "the editor could not read it".to_string());
+            self.open_failures.borrow_mut().push(could_not_open(&name, &why));
         }
+        std::mem::take(&mut *self.open_failures.borrow_mut())
     }
 
     /// A file couldn't even be handed to the page (an export, for one): the status bar says so.
@@ -204,6 +239,12 @@ fn mark_unsaved(session: &mut Session, uid: u64) {
     }
 }
 
+/// `Couldn't open <name>: <why>`, without the name twice when the editor's own words start with it.
+fn could_not_open(name: &str, why: &str) -> String {
+    let why = why.strip_prefix(name).and_then(|rest| rest.strip_prefix(": ")).unwrap_or(why);
+    format!("Couldn't open {name}: {why}")
+}
+
 fn could_not_save(name: &str, error: &str) -> String {
     format!("Couldn't save {name}: {error}")
 }
@@ -289,7 +330,10 @@ mod bridge {
 
         /// Before each frame: the page's files open, and what it refused to store shows.
         pub fn before_frame(&self, app: &mut SlideApp) {
-            self.hosted.open_arrived(app);
+            for error in self.hosted.open_arrived(app) {
+                log::error!("{error}");
+                self.post_failed(&error);
+            }
             self.hosted.settle(app);
         }
 
@@ -321,8 +365,10 @@ mod bridge {
                 match string(&data, "type").as_deref() {
                     Some("deckcraft:open") => {
                         let name = string(&data, "name").filter(|n| !n.trim().is_empty()).unwrap_or_else(|| "Presentation.pptx".to_string());
-                        let Some(bytes) = bytes(&data) else { return };
-                        hosted.receive(name, bytes);
+                        match bytes(&data) {
+                            Some(bytes) => hosted.receive(name, bytes),
+                            None => hosted.unreadable(&name, "the page sent no bytes to read (an ArrayBuffer or a Uint8Array)"),
+                        }
                     }
                     Some("deckcraft:saved") => {
                         let name = string(&data, "name").unwrap_or_default();
@@ -667,15 +713,44 @@ mod tests {
         // ...but the file the page sends opens at the next frame, and the blank one makes way.
         hosted.receive("Quarterly.pptx".into(), deck("pptx"));
         assert_eq!(app.session.documents().len(), 1, "nothing opens before the frame");
-        hosted.open_arrived(&mut app);
+        assert!(hosted.open_arrived(&mut app).is_empty(), "nothing went wrong");
         assert_eq!(app.session.documents().len(), 2);
         assert!(!hosted.after_frame(&mut app));
         assert_eq!(app.session.documents().len(), 1);
         assert_eq!(active(&app).opened_from.as_deref(), Some("Quarterly.pptx"));
         assert_eq!(active(&app).doc.slides.len(), 3);
         // Opened once: a second frame opens nothing more.
-        hosted.open_arrived(&mut app);
+        assert!(hosted.open_arrived(&mut app).is_empty());
         assert_eq!(app.session.documents().len(), 1);
+    }
+
+    /// What the page sent and the editor could not open is said back to the page (`deckcraft:failed`), and the
+    /// editor stays on what it had.
+    #[test]
+    fn a_file_the_page_sent_that_cannot_be_opened_is_said_to_the_page() {
+        let (mut app, hosted, _) = editor();
+        app.run("file.new", json!({})).unwrap();
+        app.services.host_owns_documents = true;
+        hosted.started_on(&app);
+        let blank = active(&app).uid;
+        // Bytes that are no presentation, under a presentation's name.
+        hosted.receive("Broken.pptx".into(), b"not a zip at all".to_vec());
+        let said = hosted.open_arrived(&mut app);
+        assert_eq!(said.len(), 1, "{said:?}");
+        assert!(said[0].starts_with("Couldn't open Broken.pptx: "), "{said:?}");
+        // A file that is not a presentation is not inserted into the one the editor has.
+        hosted.receive("photo.png".into(), deck("pptx"));
+        let said = hosted.open_arrived(&mut app);
+        assert_eq!(said.len(), 1, "{said:?}");
+        assert!(said[0].contains("photo.png") && said[0].contains("not a presentation"), "{said:?}");
+        // No bytes at all.
+        hosted.unreadable("Empty.pptx", "the page sent no bytes to read");
+        assert_eq!(hosted.open_arrived(&mut app), vec!["Couldn't open Empty.pptx: the page sent no bytes to read".to_string()]);
+        // Each is said once, and the editor is still on its blank presentation, unchanged.
+        assert!(hosted.open_arrived(&mut app).is_empty());
+        assert_eq!(app.session.documents().len(), 1);
+        assert_eq!(active(&app).uid, blank);
+        assert!(!unsaved(&app));
     }
 
     #[test]

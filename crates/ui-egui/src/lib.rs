@@ -2720,6 +2720,34 @@ mod tests {
         assert!(app.run("file.new", json!({})).is_err());
     }
 
+    // //// Neoffice — Save As of an editor whose hosting page stores the presentation offers the page's format only;
+    // without a host, every type, as upstream has them.
+    #[test]
+    fn save_as_offers_the_page_format_only_with_a_hosting_page() {
+        assert_eq!(backstage::save_as_types(None).len(), backstage::SAVE_TYPES.len());
+        let ids = |page| backstage::save_as_types(Some(page)).iter().map(|t| t.0).collect::<Vec<_>>();
+        assert_eq!(ids("pptx"), ["pptx"]);
+        assert_eq!(ids("deckcraft"), ["deckcraft"]);
+        // On the page, a type chosen before (a PDF) gives way to the page's format.
+        let services =
+            Services { host_owns_documents: true, host_save: Some(Box::new(|_: &mut deckcraft_engine::DocState| Ok(()))), ..Default::default() };
+        let mut harness = egui_kittest::Harness::builder().with_size(egui::vec2(1280.0, 800.0)).build_ui_state(
+            |ui, app: &mut SlideApp| {
+                let ctx = ui.ctx().clone();
+                app.logic(&ctx);
+                app.ui(ui);
+            },
+            SlideApp::new(Session::with_new(), services),
+        );
+        harness.run_steps(3);
+        harness.state_mut().run("app.backstage", json!({"page": "saveAs"})).unwrap();
+        if let Some(b) = harness.state_mut().backstage.as_mut() {
+            b.file_type = "pdf";
+        }
+        harness.run_steps(3);
+        assert_eq!(harness.state().backstage.as_ref().map(|b| b.file_type), Some("pptx"));
+    }
+
     // //// Neoffice — the engine's own Cmd+N does not bring a new presentation in beside the one a hosting page gave.
     #[test]
     fn a_host_that_opens_the_presentations_keeps_cmd_n_from_the_engine() {

@@ -221,14 +221,18 @@ fn deliver_answers(app: &mut SlideApp) -> Vec<Output> {
     answers.into_iter().flat_map(|answer| app.nora.session.handle(Input::Http(answer))).collect()
 }
 
-/// Whether the pointer is in the middle of changing the presentation: a drag on the slide, of a slide in the
+/// Whether the pointer is in the middle of changing the presentation: a drag on the slide (moving or resizing
+/// shapes, or a tool's: drawing a shape, a text box, ink or a freeform, selecting text, a guide), of a slide in the
 /// thumbnails or the slide sorter, of a whole section in the sorter, or of an object's row in the Selection pane.
-/// Nora's actions wait for it: played now, they would become part of the person's gesture and its one undo step, or
-/// move the slides or the object it drags by their index.
+/// Nora's actions wait for it, as craft-nora's host contract has them wait for the person's gesture: played now, they
+/// would become part of that gesture and its one undo step, change the text or the shapes it points at, or move the
+/// slides, the object or the guide it drags by their index.
 fn pointer_busy(app: &SlideApp) -> bool {
     app.thumb_drag.is_some()
         || app.sorter.drag.is_some()
         || app.selpane.drag.is_some()
+        || app.session.tool.dragging()
+        || app.session.tool.guide_drag.is_some()
         || app.session.active().is_some_and(|d| d.interaction.is_some())
 }
 
@@ -1639,6 +1643,40 @@ mod tests {
             let outputs = released(&mut a);
             perform(&mut a, outputs, &ctx);
             assert_eq!(slides(&a), 1, "played once the drag ended (section {section})");
+        }
+    }
+
+    /// A tool's drag on the slide (drawing a shape here) and a guide being dragged hold Nora's actions too, until the
+    /// pointer lets go.
+    #[test]
+    fn nora_waits_while_a_tool_draws_or_a_guide_moves() {
+        let ctx = egui::Context::default();
+        let press = |a: &mut SlideApp, kind: deckcraft_engine::PointerKind, x: f64, y: f64| {
+            let ev = deckcraft_engine::PointerEvent { kind, x, y, mods: Default::default(), tol: 4.0, pressure: None };
+            a.session.pointer(ev).unwrap();
+        };
+        for guide in [false, true] {
+            let mut a = deck();
+            if guide {
+                a.session.tool.guide_drag = Some((0, 100.0));
+            } else {
+                a.session.set_tool(deckcraft_engine::ToolKind::Shape { preset: "rect".into() });
+                press(&mut a, deckcraft_engine::PointerKind::Down, 500.0, 400.0);
+                assert!(a.session.tool.dragging(), "the rectangle is being drawn");
+            }
+            let before = Arc::clone(&a.session.active().unwrap().doc);
+            perform(&mut a, vec![Output::Document(DocumentCall { id: 1, kind: execute("slide.delete", json!({"index": 0})) })], &ctx);
+            assert!(Arc::ptr_eq(&a.session.active().unwrap().doc, &before), "nothing changes under the gesture (guide {guide})");
+            assert!(released(&mut a).is_empty(), "still dragging (guide {guide})");
+            if guide {
+                a.session.tool.guide_drag = None;
+            } else {
+                press(&mut a, deckcraft_engine::PointerKind::Up, 600.0, 450.0);
+                assert!(!a.session.tool.dragging());
+            }
+            let outputs = released(&mut a);
+            perform(&mut a, outputs, &ctx);
+            assert_eq!(slides(&a), 1, "played once the gesture ended (guide {guide})");
         }
     }
 

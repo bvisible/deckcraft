@@ -964,10 +964,18 @@ fn save_as(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage, out: &mut Outcom
     ui.label(RichText::new(&title).font(theme::font(15.0)).color(t.text));
     dim(ui, path.as_deref().unwrap_or("Not saved yet"));
     ui.add_space(14.0);
-    let current = SAVE_TYPES.iter().find(|s| s.0 == bs.file_type).map_or(SAVE_TYPES[0].1, |s| s.1);
+    // //// Neoffice — with a hosting page that stores the presentation, Save As offers its format only (`save_as_types`).
+    let types = save_as_types(app.services.host_save.is_some().then(|| page_format(app)));
+    if let Some(first) = types.first()
+        && !types.iter().any(|s| s.0 == bs.file_type)
+    {
+        bs.file_type = first.0;
+    }
+    let current = types.iter().find(|s| s.0 == bs.file_type).map_or(SAVE_TYPES[0].1, |s| s.1);
     ui.horizontal(|ui| {
         egui::ComboBox::from_id_salt("backstage_save_type").width(340.0).selected_text(current).show_ui(ui, |ui| {
-            for (id, label, _) in SAVE_TYPES {
+            // //// Neoffice — see `types` above.
+            for &(id, label, _) in &types {
                 if ui.selectable_label(bs.file_type == id, label).clicked() {
                     bs.file_type = id;
                 }
@@ -1004,6 +1012,26 @@ fn save_as(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage, out: &mut Outcom
     if let Some((_, _, detail)) = SAVE_TYPES.iter().find(|s| s.0 == bs.file_type) {
         dim(ui, detail);
     }
+    // //// Neoffice — where it goes, with a hosting page.
+    if app.services.host_save.is_some() {
+        dim(ui, "Saved to the page that hosts the editor, under the name and in the format of the page's file.");
+    }
+}
+
+// //// Neoffice — added: the types Save As offers. With a hosting page that stores the presentation (`Services::host_save`),
+// only `page`, the format of the page's file: the page keeps one file and saves the presentation into it, so another
+// type (a .deckcraft for a .pptx, a PDF) would reach it under another name, as a second document beside the one
+// the editor holds and marks saved. Copies in other formats are the Export page's. Without a host, all of them.
+pub fn save_as_types(page: Option<&str>) -> Vec<(&'static str, &'static str, &'static str)> {
+    SAVE_TYPES.iter().copied().filter(|t| page.is_none_or(|p| t.0 == p)).collect()
+}
+
+// //// Neoffice — added: the format of the hosting page's file (`DocState::opened_from`): a DeckCraft file stays one,
+// any other presentation goes back as a PowerPoint file (`.pptx`, `.potx`, `.ppsx`: `save_target` in
+// apps/deckcraft-web/src/host.rs).
+fn page_format(app: &SlideApp) -> &'static str {
+    let deckcraft = app.session.active().and_then(|d| d.opened_from.as_deref()).is_some_and(|n| n.to_ascii_lowercase().ends_with(".deckcraft"));
+    if deckcraft { "deckcraft" } else { "pptx" }
 }
 
 /// The slides the Print page prints, in order (0-based).
