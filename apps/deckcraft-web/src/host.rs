@@ -13,8 +13,8 @@
 //! - `deckcraft:save` (to the parent): `{ name, bytes }` (a transferred `ArrayBuffer`) for every file
 //!   DeckCraft would otherwise download: Save and Save As, and the exports (PDF, PNG…). The parent
 //!   stores it, or offers it, by the file's extension. Save and Save As hand the presentation back in
-//!   the format it was opened in, under the name it came with: `x.pptx` (and `.potx`, `.ppsx`) goes
-//!   back as a PowerPoint file, `x.deckcraft` as a DeckCraft file. A presentation made in the editor
+//!   the format it was opened in, under the name it came with: `x.pptx` (and `.potx`, `.ppsx`, each
+//!   with its own content type) goes back as a PowerPoint file, `x.deckcraft` as a DeckCraft file. A presentation made in the editor
 //!   is `<title>.pptx`.
 //! - `deckcraft:saved` (from the parent): `{ name, ok, error }`. Neoffice's addition: how storing
 //!   `name` went. `ok: false` marks the presentation unsaved again and says why in the status bar. A
@@ -167,9 +167,10 @@ impl Hosted {
 }
 
 /// The name a presentation goes back under, and the engine's name for the format of that file. The
-/// name it was opened from, when that is a presentation: a `.pptx` stays a `.pptx` (and so do
-/// `.potx` and `.ppsx`, which DeckCraft writes as PowerPoint files), a `.deckcraft` stays a
-/// `.deckcraft`. Any other presentation, one made in the editor, goes back as `<title>.pptx`.
+/// name it was opened from, when that is a presentation: a `.pptx` stays a `.pptx`, a `.potx` a
+/// template and a `.ppsx` a show (the engine writes their own content types since v0.8), a
+/// `.deckcraft` stays a `.deckcraft`. Any other presentation, one made in the editor, goes back as
+/// `<title>.pptx`.
 fn save_target(doc: &DocState) -> (String, &'static str) {
     if let Some((name, format)) = doc.opened_from.as_deref().and_then(origin_format) {
         let file = std::path::Path::new(name).file_name().map(|n| n.to_string_lossy().to_string());
@@ -182,7 +183,9 @@ fn save_target(doc: &DocState) -> (String, &'static str) {
 fn origin_format(name: &str) -> Option<(&str, &'static str)> {
     let (_, ext) = name.rsplit_once('.')?;
     match ext.to_ascii_lowercase().as_str() {
-        "pptx" | "potx" | "ppsx" => Some((name, "pptx")),
+        "pptx" => Some((name, "pptx")),
+        "potx" => Some((name, "potx")),
+        "ppsx" => Some((name, "ppsx")),
         "deckcraft" => Some((name, "deckcraft")),
         _ => None,
     }
@@ -453,10 +456,12 @@ mod tests {
             assert_eq!(posted.len(), 1, "{name}");
             let (sent_name, sent) = &posted[0];
             assert_eq!(sent_name, name);
-            // A PowerPoint package (not DeckCraft's own zip), the engine's for this very presentation...
+            // A PowerPoint package (not DeckCraft's own zip), the engine's for this very presentation, as the
+            // kind of file it came as: a template stays a template, a show a show...
             let doc = &active(&app).doc;
             assert!(is_pptx_package(sent) && !is_deckcraft_package(sent), "{name}");
-            assert_eq!(*sent, save_bytes(doc, "pptx").unwrap(), "{name}");
+            let kind = name.rsplit_once('.').map(|(_, ext)| ext.to_ascii_lowercase()).unwrap_or_default();
+            assert_eq!(*sent, save_bytes(doc, &kind).unwrap(), "{name}");
             // ... and it opens again, with every slide.
             let again = deckcraft_engine::cmd::file::open_presentation(sent_name, sent).unwrap();
             assert_eq!(again.slides.len(), 3, "{name}");
@@ -526,8 +531,8 @@ mod tests {
     #[test]
     fn a_name_that_is_not_a_presentation_is_not_kept() {
         assert_eq!(origin_format("a.pptx"), Some(("a.pptx", "pptx")));
-        assert_eq!(origin_format("a.POTX"), Some(("a.POTX", "pptx")));
-        assert_eq!(origin_format("a.ppsx"), Some(("a.ppsx", "pptx")));
+        assert_eq!(origin_format("a.POTX"), Some(("a.POTX", "potx")));
+        assert_eq!(origin_format("a.ppsx"), Some(("a.ppsx", "ppsx")));
         assert_eq!(origin_format("a.deckcraft"), Some(("a.deckcraft", "deckcraft")));
         for name in ["a.slidecraft", "outline.txt", "notes.md", "photo.png", "Presentation", "a.pptx.bak", "folder.pptx/a"] {
             assert_eq!(origin_format(name), None, "{name}");

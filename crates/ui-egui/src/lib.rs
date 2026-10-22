@@ -812,6 +812,24 @@ impl SlideApp {
 
     /// File › Close and Ctrl+W: closes the active presentation, asking first when it has unsaved
     /// changes (Save, Don't Save, Cancel), as PowerPoint does.
+    // //// Neoffice — added: a hosting page opens the presentations, so the engine's own shortcuts for what it keeps
+    // (`hidden_from_a_host`: Cmd+N `file.new`, Cmd+O `file.open`, Cmd+W `file.close`) don't reach `Session::key`,
+    // which runs them without `run` (Cmd+N always, Cmd+W while a freeform shape is being drawn). True when the key was
+    // one of them: the status bar says why nothing happened.
+    fn host_keeps_the_key(&mut self, key: egui::Key, mods: Mods) -> bool {
+        if !self.services.host_owns_documents {
+            return false;
+        }
+        let name = deckcraft_engine::keys::key_token(key_name(key));
+        let kept = deckcraft_engine::command_specs()
+            .iter()
+            .any(|c| hidden_from_a_host(c.id) && c.shortcut.is_some_and(|s| deckcraft_engine::keys::shortcut_matches(s, &name, mods)));
+        if kept {
+            self.set_status(HOSTED_MESSAGE);
+        }
+        kept
+    }
+
     pub fn close_presentation(&mut self) {
         // //// Neoffice — a hosting page opens the presentations: closing the page's is the page's (see `run`), whether
         // asked from the File tab, the menu or the keyboard.
@@ -1817,8 +1835,10 @@ impl SlideApp {
                         continue;
                     }
                     // Engine shortcuts that don't touch the hidden slide (Ctrl+N).
+                    // //// Neoffice — not those a hosting page keeps for itself (`host_keeps_the_key`).
                     if mods.cmd
                         && matches!(key, egui::Key::N)
+                        && !self.host_keeps_the_key(key, mods)
                         && let Err(e) = self.session.key(key_name(key), mods)
                     {
                         self.set_status(e.to_string());
@@ -1883,6 +1903,10 @@ impl SlideApp {
                     }
                     let mods = Mods { shift: modifiers.shift, alt: modifiers.alt, cmd: modifiers.command || modifiers.ctrl };
                     if !self.session.tool.drawing_freeform() && menus::ui_shortcut(self, key, mods) {
+                        continue;
+                    }
+                    // //// Neoffice — the engine's shortcuts a hosting page keeps for itself (`host_keeps_the_key`).
+                    if self.host_keeps_the_key(key, mods) {
                         continue;
                     }
                     let name = key_name(key);
@@ -2694,6 +2718,28 @@ mod tests {
         app.open_or_insert_bytes("Page.pptx", &bytes);
         assert_eq!(app.session.documents().len(), before + 1, "the page's presentation opened");
         assert!(app.run("file.new", json!({})).is_err());
+    }
+
+    // //// Neoffice — the engine's own Cmd+N does not bring a new presentation in beside the one a hosting page gave.
+    #[test]
+    fn a_host_that_opens_the_presentations_keeps_cmd_n_from_the_engine() {
+        for hosted in [false, true] {
+            let services = Services { host_owns_documents: hosted, ..Default::default() };
+            let mut harness = egui_kittest::Harness::builder().with_size(egui::vec2(1280.0, 800.0)).build_ui_state(
+                |ui, app: &mut SlideApp| {
+                    let ctx = ui.ctx().clone();
+                    app.logic(&ctx);
+                    app.ui(ui);
+                },
+                SlideApp::new(Session::with_new(), services),
+            );
+            harness.run_steps(3);
+            let before = harness.state().session.documents().len();
+            harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::N);
+            harness.run_steps(3);
+            let after = harness.state().session.documents().len();
+            assert_eq!(after, if hosted { before } else { before + 1 }, "Cmd+N, hosted {hosted}");
+        }
     }
 
     // //// Neoffice — the File tab and the Quick Access Toolbar of an editor whose hosting page opens the

@@ -47,11 +47,11 @@ their own `//// Neoffice — added file` header.
   and `DocState::opened_from`, the name of the file a presentation was opened from
   (`file.openBytes` sets it).
   - **Save and Save As write PowerPoint files.** A presentation opened from `x.pptx`, `x.potx` or
-    `x.ppsx` goes back to the page as a PowerPoint file under the same name; one opened from
+    `x.ppsx` goes back to the page as a PowerPoint file under the same name, a template as a template and
+    a show as a show (the engine writes their own content types since v0.8); one opened from
     `x.deckcraft` stays a `.deckcraft`; one made in the editor is `<title>.pptx`. (Without the bridge
-    the web build downloads `<title>.deckcraft`, DeckCraft's own zip, whatever was opened.) DeckCraft
-    writes a `.potx` or `.ppsx` as an ordinary presentation package, so PowerPoint may not take such a
-    file for a template or a show.
+    the web build downloads `<title>.deckcraft`, DeckCraft's own zip, whatever was opened.) In host mode
+    the File tab's Save As goes to the page the same way, whatever type is chosen there.
   - In host mode the editor starts on a blank presentation (what `?blank` opens), not on the sample
     deck, and the blank one makes way when a file opened from bytes (the page's) is there.
   - The page's file (`deckcraft:open`) waits in the bridge and opens at the start of the next frame through
@@ -75,14 +75,15 @@ their own `//// Neoffice — added file` header.
   `file.recovery.open`, `app.openDialog`, `app.home` and `app.closePresentation` (`hidden_from_a_host`), and
   `app.backstage` asked for Home, New or Open (`backstage_leaves_the_page`), are refused with a status message (`run` in
   `crates/ui-egui/src/lib.rs`); so is `close_presentation`, which Cmd+W, the File menu and the File tab call without
-  `run`. The File tab (upstream's backstage since v0.8, `crates/ui-egui/src/backstage.rs`) opens on Info, never on Home,
+  `run`, and so are the engine's own shortcuts for them (Cmd+N, and Cmd+W while a freeform shape is drawn), which
+  `Session::key` runs without `run` (`host_keeps_the_key`). The File tab (upstream's backstage since v0.8, `crates/ui-egui/src/backstage.rs`) opens on Info, never on Home,
   New or Open (`open_backstage`), and its side menu has no Home, New, Open nor Close (`entries_for`); its Home page,
   the start screen while the page's file has not arrived, only says that the page gives the presentation, and Save As
   says Save, not Download. The Quick Access Toolbar (upstream's since v0.8, `qat.rs`, which has Home by default) leaves
   out Home, New and Open, in the bar and in its Customize menu, without changing the person's toolbar. The command
   palette does not list them (`menus.rs`). A presentation dropped on the editor is not taken (`opens_as_presentation`,
   asked by `apps/deckcraft-web/src/web.rs`, which cancels the request it began). The file the page hands over opens
-  without `run` (see the bridge). Five tests in `crates/ui-egui/src/lib.rs` and one in `apps/deckcraft-web/src/host.rs`.
+  without `run` (see the bridge). Six tests in `crates/ui-egui/src/lib.rs` and one in `apps/deckcraft-web/src/host.rs`.
   The words are English only, like the rest of the interface. Every other build behaves as before.
 
 - **The account button of the title bar** (new file `crates/ui-egui/src/account.rs`, with its tests; one marked line in
