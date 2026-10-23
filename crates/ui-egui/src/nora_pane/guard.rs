@@ -14,7 +14,7 @@
 //! What was already there (the person's own links, moved or not) is counted, not refused: only a change
 //! that adds to it is.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 
 use craft_nora::links;
@@ -118,11 +118,16 @@ fn all(deck: &Presentation) -> Vec<Reach> {
 /// The links of one part, read in the form the presentation is saved in (`.deckcraft`): every link of
 /// a shape, of a run of text, of a table's cell is a `Hyperlink`, `{action: {kind, …}, tooltip, …}`.
 /// A part that cannot be read so is counted as one reach of its own kind, the same before and after.
+/// Each address counts once per part: a link is on every run of its text, and a run split in two (a word
+/// of the person's linked text made bold) is still the one link.
 fn read<T: serde::Serialize>(part: &T, place: &str, found: &mut Vec<Reach>) {
+    let mut here = Vec::new();
     match serde_json::to_value(part) {
-        Ok(value) => walk(&value, place, found, 0),
-        Err(_) => found.push(Reach { key: "unreadable".to_string(), what: "a part that could not be read".to_string(), place: place.to_string() }),
+        Ok(value) => walk(&value, place, &mut here, 0),
+        Err(_) => here.push(Reach { key: "unreadable".to_string(), what: "a part that could not be read".to_string(), place: place.to_string() }),
     }
+    let mut seen = HashSet::new();
+    found.extend(here.into_iter().filter(|reach| seen.insert(reach.key.clone())));
 }
 
 fn walk(value: &Value, place: &str, found: &mut Vec<Reach>, depth: usize) {
@@ -237,6 +242,26 @@ mod tests {
         assert!(added(&before, &now(&s)).is_empty(), "another slide changed");
         s.execute("slide.duplicate", &json!({"index": 0})).unwrap();
         assert_eq!(added(&before, &now(&s)).len(), 1, "the link copied with its slide is one more");
+    }
+
+    #[test]
+    fn a_link_split_over_two_runs_is_still_one_link() {
+        let (mut s, _) = session();
+        let title = s.doc().unwrap().doc.slides[0].shapes[0].id.0;
+        s.execute("text.set", &json!({"id": title, "text": "le catalogue"})).unwrap();
+        s.execute("edit.select", &json!({"ids": [title]})).unwrap();
+        s.execute("insert.hyperlink", &json!({"url": "\\\\srv\\cat.pdf"})).unwrap();
+        let before = now(&s);
+        assert_eq!(all(&before).len(), 1, "one link on the slide");
+        let mut split = (*before).clone();
+        let mut slide = (*split.slides[0]).clone();
+        let shape = slide.shapes.iter_mut().find(|shape| shape.click.is_some()).unwrap();
+        let link = shape.click.clone();
+        let mut copy = shape.clone();
+        copy.click = link;
+        slide.shapes.push(copy);
+        split.slides[0] = Arc::new(slide);
+        assert!(added(&before, &split).is_empty(), "the same address twice on one slide is still the one link");
     }
 
     #[test]

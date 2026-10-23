@@ -2073,4 +2073,16 @@ mod tests {
         run(&mut a, type_text("A word from Nora", false)).unwrap();
         assert_eq!(a.nora.changes.len(), 3);
     }
+
+    /// The person's own link to a file stays theirs: Nora making a part of its text bold splits its run in two, and
+    /// that is still the one link, not a new one.
+    #[test]
+    fn formatting_a_part_of_the_person_s_link_to_a_file_is_not_refused() {
+        let mut a = deck();
+        run(&mut a, select("big", 1)).unwrap();
+        a.run("insert.hyperlink", json!({"url": "\\\\srv\\cat.pdf"})).unwrap();
+        run(&mut a, select("bi", 1)).unwrap();
+        run(&mut a, execute("format.bold", json!({}))).unwrap();
+        assert_eq!(shape_text(&a, 0, 1), "Hello big world");
+    }
 }
