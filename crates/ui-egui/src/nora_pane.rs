@@ -74,7 +74,9 @@ const FILE_KEYS: &[&str] = &["path", "paths", "file", "files", "filename", "fold
 /// with `edit.pasteText` and `edit.pasteSpecial`: every open presentation shares it, so Nora would read what they copied
 /// elsewhere); and the playback
 /// of a presentation's media, which decodes a file's audio or video (`media.play`, `media.seek`, `media.toggle`, and
-/// `media.posterFrame`, which decodes a frame): only the person's click does that.
+/// `media.posterFrame`, which decodes a frame): only the person's click does that; and the player of their screen
+/// (`media.pause`, `media.stop`, and `media.gifPlay`, which pauses or plays a GIF's animation in their view), which the
+/// server refuses as well (neoffice_theme `SERVER_REFUSED`).
 const THE_PERSON_S: &[&str] = &[
     "show.fromStart",
     "show.fromCurrent",
@@ -88,6 +90,9 @@ const THE_PERSON_S: &[&str] = &[
     "media.seek",
     "media.toggle",
     "media.posterFrame",
+    "media.pause",
+    "media.stop",
+    "media.gifPlay",
 ];
 
 /// The height of a new text box of Nora's, before it grows to its text.
@@ -1635,17 +1640,8 @@ mod tests {
     fn the_policy_keeps_the_interface_and_the_files_to_the_user() {
         use craft_nora::Decision;
         let policy = policy();
-        for allowed in [
-            "format.bold",
-            "slide.new",
-            "text.insert",
-            "text.delete",
-            "view.slideMaster",
-            "show.setup",
-            "document.inspect",
-            "media.pause",
-            "media.info",
-        ] {
+        for allowed in ["format.bold", "slide.new", "text.insert", "text.delete", "view.slideMaster", "show.setup", "document.inspect", "media.info"]
+        {
             assert_eq!(policy.check(allowed), Decision::Allow, "{allowed}");
         }
         for denied in [
@@ -1672,6 +1668,9 @@ mod tests {
             "media.seek",
             "media.toggle",
             "media.posterFrame",
+            "media.pause",
+            "media.stop",
+            "media.gifPlay",
         ] {
             assert_eq!(policy.check(denied), Decision::Deny, "{denied}");
         }
@@ -1697,6 +1696,9 @@ mod tests {
             "media.seek",
             "media.toggle",
             "media.posterFrame",
+            "media.pause",
+            "media.stop",
+            "media.gifPlay",
         ];
         for spec in deckcraft_engine::command_specs() {
             let refused = spec.id.starts_with("file.") || spec.id.starts_with("window.") || theirs.contains(&spec.id);
