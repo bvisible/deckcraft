@@ -198,7 +198,12 @@ pub fn font_definitions(extra: &[std::sync::Arc<deckcraft_fonts::FontFace>]) -> 
         list.insert(after_inter, latin);
     }
     // A bold family for headings and selected tabs.
-    let mut bold: Vec<String> = names.iter().filter(|(fam, st, _)| *fam == "Inter" && *st == "SemiBold").map(|(_, _, n)| n.clone()).collect();
+    // //// Neoffice — Inter SemiBold, else Inter Bold: a browser build embeds Bold and no SemiBold (crates/fonts/build.rs),
+    // //// so its bold family drew the regular face, and Nora's pane its bold words twice (has_bold_face).
+    let mut bold: Vec<String> = Vec::new();
+    for style in ["SemiBold", "Bold"] {
+        bold.extend(names.iter().filter(|(fam, st, _)| *fam == "Inter" && *st == style).map(|(_, _, n)| n.clone()));
+    }
     bold.extend(defs.families.get(&FontFamily::Proportional).cloned().unwrap_or_default());
     defs.families.insert(FontFamily::Name("bold".into()), bold);
     add_fallback_faces(&mut defs, extra);
@@ -229,6 +234,12 @@ pub fn add_fallback_faces(defs: &mut FontDefinitions, faces: &[std::sync::Arc<de
             list.push(name.clone());
         }
     }
+}
+
+// //// Neoffice — whether the bold family has a bold face of its own (Inter SemiBold or Bold embedded from craft-fonts).
+// //// Without one it draws the regular face, and Nora's pane then draws its bold words twice instead (nora_pane::style).
+pub fn has_bold_face() -> bool {
+    deckcraft_fonts::CRAFT_FONTS.iter().any(|f| f.family == "Inter" && matches!(f.style, "SemiBold" | "Bold"))
 }
 
 pub fn bold(size: f32) -> egui::FontId {
