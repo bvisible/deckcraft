@@ -250,6 +250,10 @@ pub struct Services {
     pub nora_http: Option<Box<dyn Fn(craft_nora::HttpRequest)>>,
     /// The answers to [`Services::nora_http`], delivered asynchronously by the host.
     pub nora_inbox: Option<NoraInbox>,
+    // //// Neoffice — the host opens a page of the person's instance for the pane (a card's Open, a link of a reply): the
+    // path only (`/drive/f/…`), already checked by craft-nora (`instance_path`). Without it the pane shows a link as its words.
+    /// Open a page of the person's instance, by its path, the host's own way.
+    pub nora_open: Option<Box<dyn Fn(&str)>>,
     pub inbox: Option<Inbox>,
     /// Image on the system clipboard (PNG bytes), when the host can read one.
     pub clipboard_image: Option<Box<dyn FnMut() -> Option<Vec<u8>>>>,

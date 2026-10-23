@@ -74,11 +74,12 @@ arboard = { version = "3.6", default-features = false }
 # same Nora works in every editor. Neoffice's craft-libs fork carries Nora's client core and its egui panel, at the
 # revision WordCraft uses. Both depend on egui only (the same 0.36 as here). To follow a newer craft-libs, move this
 # revision; nothing else changes.
-# //// Neoffice — revision 6d01314 (craft-libs version-15, 23.10.2026): the Stop, Undo offered only for what Nora
+# //// Neoffice — revision 8dad2ad (craft-libs version-15, 23.10.2026): the Stop, Undo offered only for what Nora
 # changed, replies that stay in view, connection errors in the app's language (`NoraPanel::with_error_words`), the
-# file id a hosting page names (`DocumentInfo::file_id`) and where a link Nora wrote may lead (`links::web_or_mail`).
-craft-nora = { git = "https://github.com/bvisible/craft-libs", rev = "6d0131478baf4188ca469409b5aebef75b34bb50" }
-craft-nora-ui = { git = "https://github.com/bvisible/craft-libs", rev = "6d0131478baf4188ca469409b5aebef75b34bb50" }
+# file id a hosting page names (`DocumentInfo::file_id`), where a link Nora wrote may lead (`links::web_or_mail`), and
+# the cards and links of the conversation (`Output::Open`; print and the PDF are not this pane's yet).
+craft-nora = { git = "https://github.com/bvisible/craft-libs", rev = "8dad2adf90465df1b575f5e95a14d06c27b8f01d" }
+craft-nora-ui = { git = "https://github.com/bvisible/craft-libs", rev = "8dad2adf90465df1b575f5e95a14d06c27b8f01d" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

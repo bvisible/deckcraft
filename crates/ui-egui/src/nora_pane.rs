@@ -216,6 +216,7 @@ pub fn show(app: &mut SlideApp, ui: &mut Ui) {
     app.nora.panel = std::mem::take(&mut app.nora.panel).with_error_words(error_worder(lang));
     app.nora.panel.style = style(ui);
     app.nora.panel.offline = app.services.nora_http.is_none().then(|| tr(lang, "Nora isn't available in this version yet").to_string());
+    app.nora.panel.open_links = app.services.nora_open.is_some();
     for action in app.nora.panel.show(ui, &app.nora.session) {
         match &action {
             PanelAction::Send(_) => {
@@ -297,6 +298,12 @@ fn perform(app: &mut SlideApp, outputs: Vec<Output>, ctx: &egui::Context) {
                     next.extend(app.nora.session.handle(Input::DocumentResult { id: call.id, result }));
                 }
                 Output::Changed => ctx.request_repaint(),
+                // A page of the instance (a card's Open), by the host.
+                Output::Open(path) => {
+                    if let Some(open) = &app.services.nora_open {
+                        open(&path);
+                    }
+                }
             }
         }
         queue = next;
@@ -392,6 +399,10 @@ impl Snapshot {
     }
 }
 
+/// What Nora is told when she asks this pane to print or for the presentation's PDF: the words the server reads as an
+/// editor that does not do it (it then tells the person to use File, Print or Export).
+const NOT_HERE_YET: &str = "this is not available in the editor yet: NeoPrés prints with File, Print and exports with File, Export";
+
 fn apply(app: &mut SlideApp, kind: &DocActionKind, steps: &mut usize) -> Result<Value, String> {
     match kind {
         DocActionKind::Observe => observe(app),
@@ -402,6 +413,8 @@ fn apply(app: &mut SlideApp, kind: &DocActionKind, steps: &mut usize) -> Result<
         DocActionKind::RenderPage { page, scale } => render_slide(app, *page, *scale),
         DocActionKind::Save => save(app),
         DocActionKind::Undo => undo(app),
+        // Printing and the PDF for an e-mail are NeoDoc's for now (its letters): the server says what to do instead.
+        DocActionKind::Print | DocActionKind::ExportPdf => Err(NOT_HERE_YET.to_string()),
     }
 }
 
@@ -957,6 +970,7 @@ fn labels(lang: Lang) -> NoraLabels {
         confirm_heading: tr(lang, "Nora wants to:").to_string(),
         allow: tr(lang, "Allow").to_string(),
         refuse: tr(lang, "Refuse").to_string(),
+        open: tr(lang, "Open").to_string(),
         describe: describer(lang),
     }
 }
@@ -1011,6 +1025,7 @@ fn describe(lang: Lang, kind: &DocActionKind) -> String {
         DocActionKind::RenderPage { page, .. } => fmt(tr(lang, "Look at slide {slide}"), &[("slide", &page.to_string())]),
         DocActionKind::Save => tr(lang, "Save the presentation").to_string(),
         DocActionKind::Undo => tr(lang, "Undo the last change").to_string(),
+        DocActionKind::Print | DocActionKind::ExportPdf => kind.summary(),
     }
 }
 
