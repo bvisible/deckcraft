@@ -82,8 +82,9 @@ arboard = { version = "3.6", default-features = false }
 # //// Neoffice — 4945194 (23.10.2026): a card that asks for a choice (the mailbox to write an e-mail draft from), answered through
 # the pane's own door, and the document's file handed for an e-mail draft (`doc_export_file`).
 # //// Neoffice — d04a313 (23.10.2026): Nora's little Markdown drawn in her bubbles, not printed (bold, italic, code, lists).
-craft-nora = { git = "https://github.com/bvisible/craft-libs", rev = "d04a31394465bdff174826bc2719ad2f3b64c507" }
-craft-nora-ui = { git = "https://github.com/bvisible/craft-libs", rev = "d04a31394465bdff174826bc2719ad2f3b64c507" }
+# //// Neoffice — 72445c1 (23.10.2026): with no bold face of the app (`bold_family: None`), her bold words drawn twice a pixel apart.
+craft-nora = { git = "https://github.com/bvisible/craft-libs", rev = "72445c1e62b1bd06bebd777df976c3e9a7bc59fc" }
+craft-nora-ui = { git = "https://github.com/bvisible/craft-libs", rev = "72445c1e62b1bd06bebd777df976c3e9a7bc59fc" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
