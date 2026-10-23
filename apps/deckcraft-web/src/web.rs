@@ -212,6 +212,8 @@ fn services(inbox: Inbox, ctx: egui::Context) -> Services {
             });
         })),
         write: Some(Box::new(|name: &str, bytes: &[u8]| download(name, bytes))),
+        // //// Neoffice — the print dialog Nora opens on the presentation's PDF (`Services::print`).
+        print: Some(Box::new(print_pdf)),
         download: Some(Box::new(|name: &str, bytes: &[u8]| {
             if let Err(e) = download(name, bytes) {
                 log::error!("download of {name} failed: {e}");
@@ -224,6 +226,39 @@ fn services(inbox: Inbox, ctx: egui::Context) -> Services {
 
 fn push_inbox(inbox: &Inbox, event: InboxEvent) {
     inbox.lock().unwrap_or_else(|e| e.into_inner()).push(event);
+}
+
+// //// Neoffice — the browser's print dialog on a PDF, for Nora's « imprime-la » (`Services::print`): the PDF in a hidden
+// frame, whose own `print()` is called once it has rendered (GridCraft's web build does the same for File › Print). The
+// dialog is the person's: nothing reaches a printer before they confirm. The frame and its address go once it closes.
+fn print_pdf(bytes: &[u8]) -> Result<(), String> {
+    let js = |e: wasm_bindgen::JsValue| format!("{e:?}");
+    let window = web_sys::window().ok_or("no window")?;
+    let document = window.document().ok_or("no document")?;
+    let parts = js_sys::Array::of1(&js_sys::Uint8Array::from(bytes));
+    let opts = web_sys::BlobPropertyBag::new();
+    opts.set_type("application/pdf");
+    let blob = web_sys::Blob::new_with_u8_array_sequence_and_options(&parts, &opts).map_err(js)?;
+    let url = web_sys::Url::create_object_url_with_blob(&blob).map_err(js)?;
+    let frame: web_sys::HtmlIFrameElement = document.create_element("iframe").map_err(js)?.dyn_into().map_err(|_| "not an iframe")?;
+    frame.style().set_property("display", "none").map_err(js)?;
+    document.body().ok_or("no body")?.append_child(&frame).map_err(js)?;
+    // `onload` fires once the PDF has rendered in the frame (a print before it shows a blank page): set before `src`.
+    let loaded = frame.clone();
+    let address = url.clone();
+    let on_load = wasm_bindgen::closure::Closure::once_into_js(move || {
+        let Some(content) = loaded.content_window() else { return };
+        let _ = content.print();
+        let closed = loaded.clone();
+        let on_after_print = wasm_bindgen::closure::Closure::once_into_js(move || {
+            web_sys::Url::revoke_object_url(&address).ok();
+            closed.remove();
+        });
+        let _ = content.add_event_listener_with_callback("afterprint", on_after_print.unchecked_ref());
+    });
+    frame.set_onload(Some(on_load.unchecked_ref()));
+    frame.set_src(&url);
+    Ok(())
 }
 
 /// Trigger a browser download of `bytes` named after the last component of `path`.

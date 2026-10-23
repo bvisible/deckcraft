@@ -232,6 +232,10 @@ pub struct Services {
     pub open_async: Option<OpenAsyncFn>,
     /// Hand bytes to the user as a named file (browser download).
     pub download: Option<DownloadFn>,
+    // //// Neoffice — the browser's print dialog on a PDF (the web build: a hidden frame's `print()`), for the print Nora
+    // opens on the presentation (« imprime-la »). File › Print keeps upstream's way (the PDF, downloaded on the web).
+    /// Open the print dialog on these PDF bytes. An `Err` when nothing could be opened.
+    pub print: Option<Box<dyn Fn(&[u8]) -> Result<(), String>>>,
     // //// Neoffice — added hook (no upstream equivalent), for a page that frames the editor.
     /// The page stores the presentation itself: Save and Save As give it the presentation instead of
     /// encoding a file for `download`. It marks the presentation saved once it holds it; an `Err` is

@@ -79,8 +79,10 @@ arboard = { version = "3.6", default-features = false }
 # file id a hosting page names (`DocumentInfo::file_id`), where a link Nora wrote may lead (`links::web_or_mail`), and
 # the cards and links of the conversation (`Output::Open`; print and the PDF are not this pane's yet).
 # //// Neoffice — da21317: a reply's links to the instance on a row of their own under its words.
-craft-nora = { git = "https://github.com/bvisible/craft-libs", rev = "da21317fb6c251c057272484a2b76c66a3be314f" }
-craft-nora-ui = { git = "https://github.com/bvisible/craft-libs", rev = "da21317fb6c251c057272484a2b76c66a3be314f" }
+# //// Neoffice — 4945194 (23.10.2026): a card that asks for a choice (the mailbox to write an e-mail draft from), answered through
+# the pane's own door, and the document's file handed for an e-mail draft (`doc_export_file`).
+craft-nora = { git = "https://github.com/bvisible/craft-libs", rev = "494519458f4ec35d9a54df256afd122eb854dc5c" }
+craft-nora-ui = { git = "https://github.com/bvisible/craft-libs", rev = "494519458f4ec35d9a54df256afd122eb854dc5c" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

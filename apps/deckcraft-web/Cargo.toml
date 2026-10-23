@@ -29,4 +29,6 @@ wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
 # //// Neoffice — MessageEvent and UrlSearchParams are for the host bridge (src/host.rs); Headers, Request, RequestInit,
 # RequestCredentials and Response are for the Nora pane's `fetch` (src/web/nora.rs).
-web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlElement", "HtmlCanvasElement", "HtmlAnchorElement", "Blob", "BlobPropertyBag", "Url", "Location", "CssStyleDeclaration", "MessageEvent", "UrlSearchParams", "Headers", "Request", "RequestInit", "RequestCredentials", "Response"] }
+# //// Neoffice — HtmlIFrameElement is for the print dialog Nora opens on the presentation's PDF
+# (src/web.rs, `print_pdf`).
+web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlElement", "HtmlCanvasElement", "HtmlAnchorElement", "HtmlIFrameElement", "Blob", "BlobPropertyBag", "Url", "Location", "CssStyleDeclaration", "MessageEvent", "UrlSearchParams", "Headers", "Request", "RequestInit", "RequestCredentials", "Response"] }

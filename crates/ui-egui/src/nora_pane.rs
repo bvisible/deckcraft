@@ -399,9 +399,9 @@ impl Snapshot {
     }
 }
 
-/// What Nora is told when she asks this pane to print or for the presentation's PDF: the words the server reads as an
+/// What Nora is told when she asks for the print dialog where the editor has none: the words the server reads as an
 /// editor that does not do it (it then tells the person to use File, Print or Export).
-const NOT_HERE_YET: &str = "this is not available in the editor yet: NeoPrés prints with File, Print and exports with File, Export";
+const NO_PRINT_DIALOG: &str = "printing is not available in the editor here: the person prints with File, Print";
 
 fn apply(app: &mut SlideApp, kind: &DocActionKind, steps: &mut usize) -> Result<Value, String> {
     match kind {
@@ -413,9 +413,52 @@ fn apply(app: &mut SlideApp, kind: &DocActionKind, steps: &mut usize) -> Result<
         DocActionKind::RenderPage { page, scale } => render_slide(app, *page, *scale),
         DocActionKind::Save => save(app),
         DocActionKind::Undo => undo(app),
-        // Printing and the PDF for an e-mail are NeoDoc's for now (its letters): the server says what to do instead.
-        DocActionKind::Print | DocActionKind::ExportPdf => Err(NOT_HERE_YET.to_string()),
+        DocActionKind::Print => print(app),
+        DocActionKind::ExportPdf => export_pdf(app),
+        DocActionKind::ExportFile => export_file(app),
     }
+}
+
+/// The print dialog on the presentation's PDF (its slides, as File › Export › PDF lays them out): the browser's, through
+/// the host's `print`, or, on the desktop, the system's PDF viewer, which has the printers (File › Print's way). Nothing
+/// reaches a printer before the person confirms there.
+fn print(app: &mut SlideApp) -> Result<Value, String> {
+    if app.services.print.is_none() {
+        if app.services.pick_save.is_some() {
+            return if app.print_pdf(json!({})) { Ok(json!({"dialog": true, "viewer": true})) } else { Err(NO_PRINT_DIALOG.into()) };
+        }
+        return Err(NO_PRINT_DIALOG.into());
+    }
+    let d = app.session.active().ok_or(NO_PRESENTATION)?;
+    let bytes =
+        deckcraft_engine::cmd::file::pdf_bytes(&d.doc, &json!({})).map_err(|e| format!("the presentation could not be made into a PDF: {e}"))?;
+    if let Some(print) = &app.services.print {
+        print(&bytes).map_err(|e| format!("the print dialog could not be opened: {e}"))?;
+    }
+    Ok(json!({"dialog": true}))
+}
+
+/// The presentation's PDF, as File › Export › PDF makes it, handed to Nora for an e-mail draft (craft-nora's
+/// `pdf_result`): made by the engine, nothing downloaded on the way.
+fn export_pdf(app: &mut SlideApp) -> Result<Value, String> {
+    let d = app.session.active().ok_or(NO_PRESENTATION)?;
+    let name = format!("{}.pdf", d.title());
+    let bytes =
+        deckcraft_engine::cmd::file::pdf_bytes(&d.doc, &json!({})).map_err(|e| format!("the presentation could not be made into a PDF: {e}"))?;
+    craft_nora::protocol::pdf_result(&name, &bytes)
+}
+
+/// The presentation in its own format (the page's file's: `.pptx`, `.potx`, `.ppsx`; a PowerPoint presentation for any
+/// other), as it is now with what was not saved yet, handed to Nora for an e-mail draft (craft-nora's `file_result`).
+/// Nothing is saved.
+fn export_file(app: &mut SlideApp) -> Result<Value, String> {
+    let d = app.session.active().ok_or(NO_PRESENTATION)?;
+    let named = name_of(d);
+    let format = deckcraft_engine::cmd::file::format_for_path(&named);
+    let (name, format) = if matches!(format, "pptx" | "potx" | "ppsx") { (named, format) } else { (format!("{}.pptx", d.title()), "pptx") };
+    let bytes =
+        deckcraft_engine::cmd::file::save_bytes(&d.doc, format).map_err(|e| format!("the presentation could not be written as {name}: {e}"))?;
+    craft_nora::protocol::file_result(&name, &bytes)
 }
 
 /// Runs one of DeckCraft's commands for Nora, through [`SlideApp::run`] as its MCP tools do, and counts the undo step it
@@ -1025,7 +1068,7 @@ fn describe(lang: Lang, kind: &DocActionKind) -> String {
         DocActionKind::RenderPage { page, .. } => fmt(tr(lang, "Look at slide {slide}"), &[("slide", &page.to_string())]),
         DocActionKind::Save => tr(lang, "Save the presentation").to_string(),
         DocActionKind::Undo => tr(lang, "Undo the last change").to_string(),
-        DocActionKind::Print | DocActionKind::ExportPdf => kind.summary(),
+        DocActionKind::Print | DocActionKind::ExportPdf | DocActionKind::ExportFile => kind.summary(),
     }
 }
 
@@ -1164,6 +1207,38 @@ mod tests {
 
     fn call(command: &str, params: Value) -> CommandCall {
         CommandCall { command: command.into(), params }
+    }
+
+    /// Nora's print opens the print dialog on the presentation's PDF, through the host's `print`; a host without one is
+    /// told so, and nothing is printed.
+    #[test]
+    fn nora_s_print_opens_the_print_dialog_on_the_presentation_s_pdf() {
+        let printed: Arc<Mutex<Vec<usize>>> = Arc::default();
+        let seen = printed.clone();
+        let mut a = deck();
+        a.services.print = Some(Box::new(move |bytes: &[u8]| {
+            assert!(bytes.starts_with(b"%PDF-"));
+            seen.lock().unwrap_or_else(|e| e.into_inner()).push(bytes.len());
+            Ok(())
+        }));
+        assert_eq!(run(&mut a, DocActionKind::Print).unwrap()["dialog"], true);
+        assert_eq!(printed.lock().unwrap_or_else(|e| e.into_inner()).len(), 1);
+        let mut bare = deck();
+        assert!(run(&mut bare, DocActionKind::Print).unwrap_err().contains("not available"));
+    }
+
+    /// For an e-mail draft Nora is handed the presentation's PDF and the presentation in its format, as they are now:
+    /// nothing is saved.
+    #[test]
+    fn nora_is_handed_the_presentation_s_pdf_and_file_without_a_save() {
+        let mut a = deck();
+        let pdf = run(&mut a, DocActionKind::ExportPdf).unwrap();
+        assert!(pdf["name"].as_str().is_some_and(|n| n.ends_with(".pdf")), "{pdf}");
+        assert!(pdf["data"].as_str().is_some_and(|d| d.starts_with("JVBERi0")), "a PDF, in base64");
+        let file = run(&mut a, DocActionKind::ExportFile).unwrap();
+        assert!(file["name"].as_str().is_some_and(|n| n.ends_with(".pptx")), "{file}");
+        assert!(file["data"].as_str().is_some_and(|d| d.starts_with("UEsDB")), "a PowerPoint package (a zip), in base64");
+        assert!(a.session.active().is_some_and(|d| d.is_dirty()), "nothing was saved");
     }
 
     /// The Nora pane is a UI command: off by default, toggled without a value, kept between runs.
