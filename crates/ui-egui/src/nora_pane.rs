@@ -46,7 +46,7 @@ use craft_nora::{
     AppKind, CommandCall, CommandPolicy, DocActionKind, DocumentCall, DocumentInfo, HttpRequest, HttpResponse, Input, NoraError, NoraSession, Output,
     PageContext, Selection, SessionConfig,
 };
-use craft_nora_ui::{NoraLabels, NoraPanel, NoraStyle, PanelAction, drive};
+use craft_nora_ui::{NoraLabels, NoraPanel, NoraStyle, PanelAction, ResumeWords, drive};
 use deckcraft_engine::{DocState, History, Target};
 use deckcraft_model::{PhType, Presentation, Shape, ShapeId, ShapeKind, TextBody};
 use egui::{CornerRadius, Sense, Ui, vec2};
@@ -212,10 +212,14 @@ fn header(ui: &mut Ui, t: &Tokens) -> bool {
 
 /// Draws the pane's content (inside the pane's frame) and moves the conversation along.
 pub fn show(app: &mut SlideApp, ui: &mut Ui) {
-    let mut outputs = incoming(app);
-    outputs.extend(drive(ui.ctx(), &mut app.nora.session));
+    // The frame's tick first, then the answers: after a gap without frames (a tab in the background) the session knows it
+    // before it reads an answer that waited in the page, whose action it then refuses rather than plays late, and offers
+    // to resume the request (craft-libs ed1cb40, 1f01bcc).
+    let mut outputs = drive(ui.ctx(), &mut app.nora.session);
+    outputs.extend(incoming(app));
     let lang = app.nora.lang;
     app.nora.panel.labels = labels(lang);
+    app.nora.panel.resume_words = resume_words(lang);
     // The panel takes its words for a failure of the connection once, when it is made: given again each frame, as the
     // labels, so that they follow the pane's language.
     app.nora.panel = std::mem::take(&mut app.nora.panel).with_error_words(error_worder(lang));
@@ -1026,6 +1030,14 @@ fn labels(lang: Lang) -> NoraLabels {
     }
 }
 
+/// What the pane says under a request lost to a tab in the background, and its button, in the pane's language.
+fn resume_words(lang: Lang) -> ResumeWords {
+    ResumeWords {
+        said: tr(lang, "This tab was in the background: Nora could not act in the presentation.").to_string(),
+        resume: tr(lang, "Resume").to_string(),
+    }
+}
+
 /// The panel takes a plain function to describe an action, so there is one per language.
 fn describer(lang: Lang) -> fn(&DocActionKind) -> String {
     match lang {
@@ -1405,6 +1417,54 @@ mod tests {
         assert_eq!(observation.body["callback_id"], "c1");
         assert_eq!(observation.body["observation"]["ok"], true);
         assert_eq!(observation.body["observation"]["result"]["newTextBox"], true);
+    }
+
+    /// A tab in the background draws no frame. An action that waited in the page meanwhile is refused at the frame that
+    /// comes back, never played late: the pane ticks before it hands over the answers (craft-libs 1f01bcc). Once the turn
+    /// is over, the pane says why and Resume sends the request again.
+    #[test]
+    fn an_action_that_waited_in_a_page_in_the_background_is_refused_and_the_request_can_be_resumed() {
+        let (services, outbox, inbox) = connected();
+        let mut a = app(services);
+        a.run("ui.nora", json!({"on": true})).unwrap();
+        let mut h = harness(a);
+        let polls = start(&mut h, &outbox, &inbox, "Write a greeting");
+        let actions = polls.iter().find(|r| r.path.ends_with("get_browser_actions")).expect("the actions are read");
+        answer(&inbox, actions, json!({"actions": [{"action": "doc_type_text", "text": "Bonjour tout le monde", "callback_id": "c1"}]}));
+        // The page comes back nine minutes later, the answer still waiting in it.
+        let now = h.ctx.input(|i| i.time);
+        h.input_mut().time = Some(now + 540.0);
+        h.step();
+        h.input_mut().time = None;
+        h.run_steps(2);
+        let typed = |h: &Harness| {
+            h.state().session.active().unwrap().doc.slides[0].shapes.iter().any(|s| s.text.as_ref().is_some_and(|t| t.text().contains("Bonjour")))
+        };
+        assert!(!typed(&h), "not played late");
+        let told = take(&outbox);
+        let observation = told.iter().find(|r| r.path.ends_with("receive_observation") && r.body["callback_id"] == "c1").expect("Nora is told");
+        assert_eq!(observation.body["observation"]["ok"], false, "{}", observation.body);
+        // Nothing more comes from Nora: the turn ends, and the pane offers to resume it.
+        let mut rounds = 0;
+        while h.query_by_label("Resume").is_none() {
+            rounds += 1;
+            assert!(rounds < 200, "the pane offers Resume once the turn is over");
+            for read in take(&outbox) {
+                if read.path.ends_with("get_messages") {
+                    answer(&inbox, &read, json!({"messages": []}));
+                } else if read.path.ends_with("get_browser_actions") {
+                    answer(&inbox, &read, json!({"actions": []}));
+                }
+            }
+            h.run_steps(2);
+        }
+        assert!(h.query_by_label("This tab was in the background: Nora could not act in the presentation.").is_some());
+        assert!(!typed(&h), "the old action stays refused");
+        take(&outbox);
+        h.get_by_label("Resume").click();
+        h.run_steps(4);
+        let sent = take(&outbox);
+        assert!(sent.iter().any(|r| r.body["message"] == "Write a greeting"), "the same request, sent again: {sent:?}");
     }
 
     /// A command the policy refuses never reaches the presentation nor the interface, and Nora is told why.

@@ -208,6 +208,8 @@ pub const ENGLISH: &[&str] = &[
     "Your session has expired. Sign in again.",
     "The server could not answer (error {status}). Try again in a moment.",
     "Nora's answer could not be read.",
+    "This tab was in the background: Nora could not act in the presentation.",
+    "Resume",
 ];
 
 /// French (Swiss customers, "vous"), WordCraft's wording where the pane says the same.
@@ -251,6 +253,11 @@ const FRENCH: &[(&str, &str)] = &[
         "Le serveur n'a pas pu répondre (erreur {status}). Réessayez dans un instant.",
     ),
     ("Nora's answer could not be read.", "La réponse de Nora n'a pas pu être lue."),
+    (
+        "This tab was in the background: Nora could not act in the presentation.",
+        "L'onglet était en arrière-plan : Nora n'a pas pu agir dans la présentation.",
+    ),
+    ("Resume", "Reprendre"),
 ];
 
 /// German (Swiss Standard German, "Sie"); the Undo button says what WordCraft's catalog says.
@@ -297,6 +304,11 @@ const GERMAN: &[(&str, &str)] = &[
         "Der Server konnte nicht antworten (Fehler {status}). Versuchen Sie es in einem Moment erneut.",
     ),
     ("Nora's answer could not be read.", "Die Antwort von Nora konnte nicht gelesen werden."),
+    (
+        "This tab was in the background: Nora could not act in the presentation.",
+        "Dieser Tab war im Hintergrund: Nora konnte in der Präsentation nichts tun.",
+    ),
+    ("Resume", "Fortsetzen"),
 ];
 
 /// Italian (formal register; the infinitive for actions and buttons).
@@ -340,6 +352,11 @@ const ITALIAN: &[(&str, &str)] = &[
         "Il server non ha potuto rispondere (errore {status}). Riprovi tra poco.",
     ),
     ("Nora's answer could not be read.", "Non è stato possibile leggere la risposta di Nora."),
+    (
+        "This tab was in the background: Nora could not act in the presentation.",
+        "Questa scheda era in secondo piano: Nora non ha potuto agire nella presentazione.",
+    ),
+    ("Resume", "Riprendere"),
 ];
 
 /// Spanish (Spain, "usted"), made by Haiku from the English.
@@ -383,6 +400,11 @@ const SPANISH: &[(&str, &str)] = &[
         "El servidor no pudo responder (error {status}). Inténtelo de nuevo en unos instantes.",
     ),
     ("Nora's answer could not be read.", "No se pudo leer la respuesta de Nora."),
+    (
+        "This tab was in the background: Nora could not act in the presentation.",
+        "Esta pestaña estaba en segundo plano: Nora no ha podido actuar en la presentación.",
+    ),
+    ("Resume", "Reanudar"),
 ];
 
 #[cfg(test)]

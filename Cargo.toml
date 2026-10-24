@@ -87,8 +87,10 @@ arboard = { version = "3.6", default-features = false }
 # that craft-pdf and krilla are pinned to here), and an appointment card made from an e-mail answered yes or no in the pane.
 # //// Neoffice — 4f48d82 (24.10.2026): a turn is not given up on the clock alone (a tab in the background gets no frame
 # for minutes), and a late answer shows as it comes (bcc831f); the panel builds on egui 0.36 or 0.37 (0.36 here).
-craft-nora = { git = "https://github.com/bvisible/craft-libs", rev = "4f48d82591133e2ba10fc9850464fce6a8f046e4" }
-craft-nora-ui = { git = "https://github.com/bvisible/craft-libs", rev = "4f48d82591133e2ba10fc9850464fce6a8f046e4" }
+# //// Neoffice — 1f01bcc (24.10.2026): a turn lost to a tab in the background offers to resume it (Resume), and
+# never plays an action of a turn given up on, reads links in linear time; the pane ticks before it hands the answers over.
+craft-nora = { git = "https://github.com/bvisible/craft-libs", rev = "1f01bcc9d5f868014499b4e6b4e617bd9e228c06" }
+craft-nora-ui = { git = "https://github.com/bvisible/craft-libs", rev = "1f01bcc9d5f868014499b4e6b4e617bd9e228c06" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

@@ -154,7 +154,13 @@ their own `//// Neoffice — added file` header.
     (it would otherwise take back the person's own work). An action that changed nothing (a read, a move to another
     slide) answers `"changed": false` and leaves nothing to undo, which newer craft-nora revisions read; a batch's list
     of results can't carry the mark.
-  - **The words** (the pane, its Preferences switch, Undo's two refusals) are in French, German, Italian or Spanish when the
+  - **A tab left in the background** runs no frame, so nothing Nora asks meanwhile is played: an action that waited in
+    the page is refused when the page comes back, never played late, and so is the rest of that turn (craft-nora). For
+    that the pane ticks its session first (`drive`), then hands it the answers the host delivered (craft-libs ed1cb40,
+    1f01bcc, as GridCraft does). Once the turn is over the pane says the tab was in the background and offers Resume
+    (`resume_words`), which sends the request again on the click only. DeckCraft carries the answers to Nora's cards, so
+    `cards_unanswered` stays unset.
+  - **The words** (the pane, its Preferences switch, Undo's two refusals, the resume sentence and button) are in French, German, Italian or Spanish when the
     hosting page names one, or the system or the browser prefers one of them (`DECKCRAFT_LANGUAGE` first, then the page's
     `?lang=` or `?locale=`, then `sys-locale`), English otherwise: the language of the interface (see below). DeckCraft has
     no catalog, so they live in Neoffice's own table, `neoffice_i18n.rs`; French reuses the wording of WordCraft's Nora
