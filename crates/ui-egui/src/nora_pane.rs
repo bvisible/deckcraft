@@ -1033,6 +1033,7 @@ fn describer(lang: Lang) -> fn(&DocActionKind) -> String {
         Lang::Fr => |kind: &DocActionKind| describe(Lang::Fr, kind),
         Lang::De => |kind: &DocActionKind| describe(Lang::De, kind),
         Lang::It => |kind: &DocActionKind| describe(Lang::It, kind),
+        Lang::Es => |kind: &DocActionKind| describe(Lang::Es, kind),
     }
 }
 
@@ -1043,6 +1044,7 @@ fn error_worder(lang: Lang) -> fn(&NoraError) -> String {
         Lang::Fr => |failure: &NoraError| error_words(Lang::Fr, failure),
         Lang::De => |failure: &NoraError| error_words(Lang::De, failure),
         Lang::It => |failure: &NoraError| error_words(Lang::It, failure),
+        Lang::Es => |failure: &NoraError| error_words(Lang::Es, failure),
     }
 }
 

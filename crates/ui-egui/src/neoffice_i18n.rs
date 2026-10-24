@@ -147,6 +147,12 @@ pub(crate) fn speak_in_tests(lang: Lang) -> impl Drop {
     Back
 }
 
+/// `english`, one of the words Neoffice added (the Nora pane), in `lang`; English itself when the language has no
+/// entry for it.
+pub fn tr(lang: Lang, english: &'static str) -> &'static str {
+    lang.table().iter().find(|(key, _)| *key == english).map_or(english, |(_, word)| *word)
+}
+
 /// Fills the `{name}` placeholders of a looked-up string; translations may put them in another order. A placeholder
 /// without a value is left as it is.
 pub fn fmt(template: &str, args: &[(&str, &str)]) -> String {
