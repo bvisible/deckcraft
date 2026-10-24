@@ -1182,7 +1182,8 @@ fn context_menu(app: &mut SlideApp, resp: &egui::Response) {
         }
         let has_sel = app.session.active().is_some_and(|d| !d.selection.shapes.is_empty());
         for (l, id) in [("Cut", "edit.cut"), ("Copy", "edit.copy"), ("Paste", "edit.paste")] {
-            if ui.add_enabled(crate::ribbon::enabled(app, id), egui::Button::new(l)).clicked() {
+            if ui.add_enabled(crate::ribbon::enabled(app, id), egui::Button::new(l10n(l))).clicked() {
+                // //// Neoffice — in the person's language (l10n)
                 let _ = app.run(id, json!({}));
                 ui.close();
             }
@@ -1197,7 +1198,8 @@ fn context_menu(app: &mut SlideApp, resp: &egui::Response) {
                 ui.close();
             }
             for (l, id) in [("Bullets", "format.bullets"), ("Numbering", "format.numbering")] {
-                if ui.add_enabled(crate::ribbon::enabled(app, id), egui::Button::new(l)).clicked() {
+                if ui.add_enabled(crate::ribbon::enabled(app, id), egui::Button::new(l10n(l))).clicked() {
+                    // //// Neoffice — in the person's language (l10n)
                     let _ = app.run(id, json!({}));
                     ui.close();
                 }
@@ -1314,7 +1316,8 @@ fn context_menu(app: &mut SlideApp, resp: &egui::Response) {
                     let _ = app.run("view.guides", json!({"on": on}));
                 }
                 for (label, vertical) in [("Add Vertical Guide", true), ("Add Horizontal Guide", false)] {
-                    if ui.button(label).clicked() {
+                    if ui.button(l10n(label)).clicked() {
+                        // //// Neoffice — in the person's language (l10n)
                         let _ = app.run("guide.add", json!({"vertical": vertical}));
                         let _ = app.run("view.guides", json!({"on": true}));
                         ui.close();

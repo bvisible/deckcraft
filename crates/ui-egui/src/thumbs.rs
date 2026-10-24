@@ -221,7 +221,8 @@ pub fn slide_menu(app: &mut SlideApp, ui: &mut Ui, i: usize) {
         ("Copy", "edit.copy", json!({"scope": "slides"})),
         ("Paste", "edit.paste", json!({"scope": "slides"})),
     ] {
-        if ui.button(l).clicked() {
+        if ui.button(l10n(l)).clicked() {
+            // //// Neoffice — in the person's language (l10n)
             let _ = app.run(id, p);
             ui.close();
         }

@@ -279,9 +279,11 @@ fn pick_album_picture(app: &mut SlideApp) -> Option<Value> {
 fn album_choice(ui: &mut Ui, d: &mut Dialog, id: &str, key: &str, default: &str, choices: &[(&str, &str)]) {
     let cur = d.get(key, default);
     let label = choices.iter().find(|(k, _)| *k == cur).map(|(_, l)| *l).unwrap_or(default);
-    let opened = egui::ComboBox::from_id_salt(id).selected_text(label).width(220.0).show_ui(ui, |ui| {
+    let opened = egui::ComboBox::from_id_salt(id).selected_text(l10n(label)).width(220.0).show_ui(ui, |ui| {
+        // //// Neoffice — in the person's language (l10n)
         for (k, l) in choices {
-            if ui.selectable_label(cur == *k, *l).clicked() {
+            if ui.selectable_label(cur == *k, l10n(l)).clicked() {
+                // //// Neoffice — in the person's language (l10n)
                 d.fields.insert(key.into(), (*k).to_string());
             }
         }
@@ -1064,9 +1066,11 @@ fn body(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
             let cur = app.session.active().map(|s| s.doc.slide_size).unwrap_or(deckcraft_model::defaults::WIDE);
             ui.label(l10n("Slides sized for:")); // //// Neoffice — in the person's language (l10n)
             let preset = d.get("preset", "");
-            egui::ComboBox::from_id_salt("sizes").selected_text(if preset.is_empty() { "Custom" } else { &preset }).show_ui(ui, |ui| {
+            egui::ComboBox::from_id_salt("sizes").selected_text(l10n(if preset.is_empty() { "Custom" } else { &preset })).show_ui(ui, |ui| {
+                // //// Neoffice — in the person's language (l10n)
                 for (label, w, h) in deckcraft_model::defaults::SLIDE_SIZES {
-                    if ui.selectable_label(preset == *label, *label).clicked() {
+                    if ui.selectable_label(preset == *label, l10n(label)).clicked() {
+                        // //// Neoffice — in the person's language (l10n)
                         d.fields.insert("preset".into(), label.to_string());
                         d.fields.insert("w".into(), format!("{:.2}", w / 72.0));
                         d.fields.insert("h".into(), format!("{:.2}", h / 72.0));
@@ -1308,7 +1312,8 @@ fn body(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
             let tab = d.get("tab", if numbered { "numbered" } else { "bulleted" });
             ui.horizontal(|ui| {
                 for (k, l) in [("bulleted", "Bulleted"), ("numbered", "Numbered")] {
-                    if ui.selectable_label(tab == k, l).clicked() {
+                    if ui.selectable_label(tab == k, l10n(l)).clicked() {
+                        // //// Neoffice — in the person's language (l10n)
                         d.fields.insert("tab".into(), k.into());
                     }
                 }
@@ -1363,10 +1368,11 @@ fn body(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
             ui.horizontal(|ui| {
                 ui.add_sized(vec2(120.0, 20.0), egui::Label::new(l10n("Color:"))); // //// Neoffice — in the person's language (l10n)
                 egui::ComboBox::from_id_salt("bullet-color")
-                    .selected_text(colors.iter().find(|c| c.0 == color).map_or("Automatic", |c| c.1))
+                    .selected_text(l10n(colors.iter().find(|c| c.0 == color).map_or("Automatic", |c| c.1))) // //// Neoffice — in the person's language (l10n)
                     .show_ui(ui, |ui| {
                         for (k, l) in colors {
-                            if ui.selectable_label(color == k, l).clicked() {
+                            if ui.selectable_label(color == k, l10n(l)).clicked() {
+                                // //// Neoffice — in the person's language (l10n)
                                 d.fields.insert("color".into(), k.into());
                             }
                         }
@@ -1434,7 +1440,8 @@ fn body(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
             };
             ui.horizontal(|ui| {
                 for (k, l) in [("click", "Mouse Click"), ("hover", "Mouse Over")] {
-                    if ui.selectable_label(tab == k, l).clicked() && tab != k {
+                    if ui.selectable_label(tab == k, l10n(l)).clicked() && tab != k {
+                        // //// Neoffice — in the person's language (l10n)
                         d.fields.clear();
                         d.fields.insert("tab".into(), k.into());
                     }
@@ -1468,9 +1475,11 @@ fn body(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
                 ];
                 let shown = targets.iter().find(|t| t.0 == kind).map_or("Next Slide", |t| t.1);
                 ui.add_enabled_ui(hyperlink, |ui| {
-                    egui::ComboBox::from_id_salt("action-target").selected_text(shown).show_ui(ui, |ui| {
+                    egui::ComboBox::from_id_salt("action-target").selected_text(l10n(shown)).show_ui(ui, |ui| {
+                        // //// Neoffice — in the person's language (l10n)
                         for (k, l) in targets {
-                            if ui.selectable_label(kind == k, l).clicked() {
+                            if ui.selectable_label(kind == k, l10n(l)).clicked() {
+                                // //// Neoffice — in the person's language (l10n)
                                 d.fields.insert("kind".into(), k.into());
                             }
                         }
@@ -1597,7 +1606,8 @@ fn body(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
                 ui.horizontal(|ui| {
                     ui.label(l10n("Print layout:")); // //// Neoffice — in the person's language (l10n)
                     egui::ComboBox::from_id_salt("pdf_layout")
-                        .selected_text(match pdf_layout.as_str() {
+                        .selected_text(l10n(match pdf_layout.as_str() {
+                            // //// Neoffice — in the person's language (l10n)
                             "notes" => "Notes Pages",
                             "h1" => "Handouts (1 slide per page)",
                             "h2" => "Handouts (2 slides per page)",
@@ -1606,7 +1616,7 @@ fn body(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
                             "h6" => "Handouts (6 slides per page)",
                             "h9" => "Handouts (9 slides per page)",
                             _ => "Full Page Slides",
-                        })
+                        })) // //// Neoffice — closes l10n( above
                         .show_ui(ui, |ui| {
                             for (k, l) in [
                                 ("slides", "Full Page Slides"),
@@ -1618,7 +1628,8 @@ fn body(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
                                 ("h6", "Handouts (6 slides per page)"),
                                 ("h9", "Handouts (9 slides per page)"),
                             ] {
-                                if ui.selectable_label(pdf_layout == k, l).clicked() {
+                                if ui.selectable_label(pdf_layout == k, l10n(l)).clicked() {
+                                    // //// Neoffice — in the person's language (l10n)
                                     d.fields.insert("pdfLayout".into(), k.into());
                                 }
                             }
@@ -2110,7 +2121,8 @@ fn body(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
                     ("pyramid", "Pyramid"),
                     ("matrix", "Matrix"),
                 ] {
-                    if ui.selectable_label(kind == k, l).clicked() {
+                    if ui.selectable_label(kind == k, l10n(l)).clicked() {
+                        // //// Neoffice — in the person's language (l10n)
                         d.fields.insert("kind".into(), k.into());
                     }
                 }
@@ -2129,7 +2141,8 @@ fn body(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
             let tab = d.get("tab", "about");
             ui.horizontal(|ui| {
                 for (k, l) in [("about", "About"), ("contributors", "Contributors"), ("models", "Models")] {
-                    if ui.selectable_label(tab == k, l).clicked() {
+                    if ui.selectable_label(tab == k, l10n(l)).clicked() {
+                        // //// Neoffice — in the person's language (l10n)
                         d.fields.insert("tab".into(), k.into());
                     }
                 }
@@ -2791,9 +2804,11 @@ fn seed_font_fields(d: &mut Dialog) {
 fn choice(ui: &mut Ui, d: &mut Dialog, salt: &str, key: &str, choices: &[(&str, &str)]) {
     let cur = d.get(key, "");
     let label = choices.iter().find(|(v, _)| *v == cur).map(|(_, l)| *l).unwrap_or(cur.as_str());
-    egui::ComboBox::from_id_salt(salt).selected_text(label).width(140.0).show_ui(ui, |ui| {
+    egui::ComboBox::from_id_salt(salt).selected_text(l10n(label)).width(140.0).show_ui(ui, |ui| {
+        // //// Neoffice — in the person's language (l10n)
         for (v, l) in choices {
-            if ui.selectable_label(cur == *v, *l).clicked() {
+            if ui.selectable_label(cur == *v, l10n(l)).clicked() {
+                // //// Neoffice — in the person's language (l10n)
                 d.fields.insert((*key).into(), (*v).into());
             }
         }
@@ -2802,7 +2817,7 @@ fn choice(ui: &mut Ui, d: &mut Dialog, salt: &str, key: &str, choices: &[(&str, 
 
 fn labeled_text(ui: &mut Ui, d: &mut Dialog, label: &str, key: &str, width: f32) -> String {
     let mut v = d.get(key, "");
-    let l = ui.label(label);
+    let l = ui.label(l10n(label)); // //// Neoffice — in the person's language (l10n)
     ui.add(egui::TextEdit::singleline(&mut v).desired_width(width)).labelled_by(l.id);
     d.fields.insert(key.into(), v.clone());
     v
@@ -2871,18 +2886,20 @@ fn font_dialog(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
         let edited = ui.add(egui::TextEdit::singleline(&mut spacing).desired_width(64.0).hint_text("pt"));
         let mut picked = None;
         egui::ComboBox::from_id_salt("font_dialog_spacing")
-            .selected_text(match spacing.as_str() {
+            .selected_text(l10n(match spacing.as_str() {
+                // //// Neoffice — in the person's language (l10n)
                 "-3" => "Very tight",
                 "-1.5" => "Tight",
                 "0" => "Normal",
                 "3" => "Loose",
                 "6" => "Very loose",
                 other => other,
-            })
+            })) // //// Neoffice — closes l10n( above
             .width(120.0)
             .show_ui(ui, |ui| {
                 for (v, l) in [("-3", "Very tight"), ("-1.5", "Tight"), ("0", "Normal"), ("3", "Loose"), ("6", "Very loose")] {
-                    if ui.selectable_label(spacing == v, l).clicked() {
+                    if ui.selectable_label(spacing == v, l10n(l)).clicked() {
+                        // //// Neoffice — in the person's language (l10n)
                         picked = Some(v.to_string());
                     }
                 }
@@ -3069,7 +3086,8 @@ fn paragraph_dialog(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
         ui.add_sized(vec2(110.0, 20.0), egui::Label::new(l10n("Line spacing"))); // //// Neoffice — in the person's language (l10n)
         let kind = d.get("lineKind", "multiple");
         let value = d.get("lineValue", "1");
-        egui::ComboBox::from_id_salt("paragraph_line").selected_text(line_preset_label(&kind, &value)).width(140.0).show_ui(ui, |ui| {
+        egui::ComboBox::from_id_salt("paragraph_line").selected_text(l10n(line_preset_label(&kind, &value))).width(140.0).show_ui(ui, |ui| {
+            // //// Neoffice — in the person's language (l10n)
             for (label, k, v) in [
                 ("Single", "multiple", Some("1")),
                 ("1.5 lines", "multiple", Some("1.5")),
@@ -3077,7 +3095,8 @@ fn paragraph_dialog(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
                 ("Multiple", "multiple", None),
                 ("Exactly", "exactly", None),
             ] {
-                if ui.selectable_label(line_preset_label(&kind, &value) == label, label).clicked() {
+                if ui.selectable_label(line_preset_label(&kind, &value) == label, l10n(label)).clicked() {
+                    // //// Neoffice — in the person's language (l10n)
                     picked = Some((k, v));
                 }
             }

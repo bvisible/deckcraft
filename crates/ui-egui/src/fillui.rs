@@ -170,9 +170,11 @@ pub fn gradient_editor(ui: &mut Ui, id: &str, g: &Gradient, sc: &ColorScheme) ->
     };
     ui.horizontal(|ui| {
         ui.add_sized(vec2(70.0, 20.0), egui::Label::new(l10n("Type"))); // //// Neoffice — in the person's language (l10n)
-        egui::ComboBox::from_id_salt((id, "kind")).selected_text(kind).width(120.0).show_ui(ui, |ui| {
+        egui::ComboBox::from_id_salt((id, "kind")).selected_text(l10n(kind)).width(120.0).show_ui(ui, |ui| {
+            // //// Neoffice — in the person's language (l10n)
             for k in ["Linear", "Radial", "Rectangular", "Path"] {
-                if ui.selectable_label(kind == k, k).clicked() && kind != k {
+                if ui.selectable_label(kind == k, l10n(k)).clicked() && kind != k {
+                    // //// Neoffice — in the person's language (l10n)
                     let focus = match &g.shape {
                         GradientShape::Path { focus, .. } => *focus,
                         _ => [0.5, 0.5, 0.5, 0.5],
@@ -194,7 +196,8 @@ pub fn gradient_editor(ui: &mut Ui, id: &str, g: &Gradient, sc: &ColorScheme) ->
             GradientShape::Linear { angle, .. } => {
                 for (l, a) in DIRECTIONS_LINEAR {
                     let on = (angle - a).abs() < 0.5;
-                    if ui.selectable_label(on, l).on_hover_text(format!("{a}°")).clicked() {
+                    if ui.selectable_label(on, l10n(l)).on_hover_text(format!("{a}°")).clicked() {
+                        // //// Neoffice — in the person's language (l10n)
                         out = Some(Gradient { shape: GradientShape::Linear { angle: a, scaled: false }, ..g.clone() });
                     }
                 }
@@ -202,7 +205,8 @@ pub fn gradient_editor(ui: &mut Ui, id: &str, g: &Gradient, sc: &ColorScheme) ->
             GradientShape::Path { path, focus } => {
                 for (l, f) in DIRECTIONS_PATH {
                     let on = focus.iter().zip(f).all(|(a, b)| (a - b).abs() < 1e-3);
-                    if ui.selectable_label(on, l.trim_start_matches("From ")).on_hover_text(l).clicked() {
+                    if ui.selectable_label(on, l10n(l.trim_start_matches("From "))).on_hover_text(l10n(l)).clicked() {
+                        // //// Neoffice — in the person's language (l10n)
                         out = Some(Gradient { shape: GradientShape::Path { path: path.clone(), focus: f }, ..g.clone() });
                     }
                 }

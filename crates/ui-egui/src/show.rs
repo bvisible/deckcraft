@@ -12,7 +12,7 @@ use serde_json::json;
 use crate::SlideApp;
 use crate::theme;
 // //// Neoffice — the interface in the person's language: DeckCraft has no catalog, see `neoffice_i18n`.
-use crate::neoffice_i18n::l10n;
+use crate::neoffice_i18n::{fmt, l10n};
 
 pub struct Show {
     pub state: ShowState,
@@ -958,7 +958,7 @@ pub fn ui(app: &mut SlideApp, ui: &mut Ui) {
         painter.text(
             pos2(bar.min.x + 14.0, bar.center().y),
             Align2::LEFT_CENTER,
-            format!("Slide {} of {}", show.state.slide + 1, doc.slides.len()),
+            fmt(l10n("Slide {n} of {count}"), &[("n", &(show.state.slide + 1).to_string()), ("count", &doc.slides.len().to_string())]), // //// Neoffice — in the person's language (l10n)
             theme::font(12.0),
             Color32::from_gray(200),
         );
@@ -986,7 +986,7 @@ pub fn ui(app: &mut SlideApp, ui: &mut Ui) {
         painter.rect_filled(bar, CornerRadius::same(17), Color32::from_black_alpha(140));
         let mut child =
             ui.new_child(egui::UiBuilder::new().max_rect(bar.shrink2(vec2(10.0, 4.0))).layout(egui::Layout::left_to_right(egui::Align::Center)));
-        let b = |ui: &mut Ui, s: &str| ui.add(egui::Button::new(egui::RichText::new(s).color(Color32::WHITE).size(15.0)).frame(false));
+        let b = |ui: &mut Ui, s: &str| ui.add(egui::Button::new(egui::RichText::new(l10n(s)).color(Color32::WHITE).size(15.0)).frame(false)); // //// Neoffice — in the person's language (l10n)
         if b(&mut child, "◀").clicked() {
             let a = show.state.prev(&doc);
             show.apply(a, &doc, now);
@@ -1665,7 +1665,7 @@ fn paint_grid(painter: &egui::Painter, ctx: &egui::Context, show: &mut Show, doc
     let aspect = slide_aspect(doc);
     let cells = see_all_cells(full, slides.len(), aspect);
     painter.rect_filled(full, CornerRadius::ZERO, Color32::from_gray(16));
-    painter.text(pos2(full.center().x, full.min.y + 28.0), Align2::CENTER_CENTER, "All slides", theme::font(20.0), Color32::WHITE);
+    painter.text(pos2(full.center().x, full.min.y + 28.0), Align2::CENTER_CENTER, l10n("All slides"), theme::font(20.0), Color32::WHITE); // //// Neoffice — in the person's language (l10n)
     if doc.slides.len() > GRID_CAP {
         painter.text(
             pos2(full.center().x, full.min.y + 50.0),
@@ -1755,12 +1755,16 @@ fn presenter_window(ctx: &egui::Context, show: &mut Show, doc: &Presentation, no
     let mut actions = vec![];
     // The presenter window is dark; default buttons draw dark text on it (#221).
     let button = |ui: &mut Ui, s: &str| {
-        ui.add(egui::Button::new(egui::RichText::new(s).size(15.0).color(Color32::WHITE)).fill(Color32::from_gray(60)).min_size(vec2(0.0, 30.0)))
+        ui.add(
+            egui::Button::new(egui::RichText::new(l10n(s)).size(15.0).color(Color32::WHITE)).fill(Color32::from_gray(60)).min_size(vec2(0.0, 30.0)),
+        ) // //// Neoffice — in the person's language (l10n)
     };
     ctx.show_viewport_immediate(
         egui::ViewportId::from_hash_of("deckcraft_presenter"),
         // //// Neoffice — our builds show our product's name (NEOFFICE_PRODUCT_NAME), upstream's otherwise.
-        egui::ViewportBuilder::default().with_title(format!("Presenter View — {}", crate::brand::name())).with_inner_size([1100.0, 700.0]),
+        egui::ViewportBuilder::default()
+            .with_title(fmt(l10n("Presenter View — {product}"), &[("product", crate::brand::name())]))
+            .with_inner_size([1100.0, 700.0]), // //// Neoffice — in the person's language (l10n)
         |ui, _| {
             if !keyboard(ui.ctx(), show, doc, now) {
                 *keep = false;
@@ -1778,7 +1782,14 @@ fn presenter_window(ctx: &egui::Context, show: &mut Show, doc: &Presentation, no
                     ui.add_space(12.0);
                     ui.label(egui::RichText::new(clock.clone()).size(16.0).color(Color32::from_gray(200)));
                     ui.add_space(20.0);
-                    ui.label(egui::RichText::new(format!("Slide {} of {}", cur + 1, doc.slides.len())).size(16.0).color(Color32::from_gray(200)));
+                    ui.label(
+                        egui::RichText::new(fmt(
+                            l10n("Slide {n} of {count}"),
+                            &[("n", &(cur + 1).to_string()), ("count", &doc.slides.len().to_string())],
+                        ))
+                        .size(16.0)
+                        .color(Color32::from_gray(200)),
+                    ); // //// Neoffice — in the person's language (l10n)
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if button(ui, "End Show").clicked() {
                             *keep = false;
@@ -1839,7 +1850,7 @@ fn presenter_window(ctx: &egui::Context, show: &mut Show, doc: &Presentation, no
                     ui.painter().rect_filled(cr, CornerRadius::ZERO, c);
                 }
                 let nr = next_rect(right, doc);
-                ui.painter().text(right.min, Align2::LEFT_TOP, "Next", theme::font(13.0), Color32::from_gray(170));
+                ui.painter().text(right.min, Align2::LEFT_TOP, l10n("Next"), theme::font(13.0), Color32::from_gray(170)); // //// Neoffice — in the person's language (l10n)
                 match &next_tex {
                     Some(t) => {
                         ui.painter().image(t.id(), nr, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
@@ -1867,7 +1878,9 @@ fn presenter_window(ctx: &egui::Context, show: &mut Show, doc: &Presentation, no
                 let mut child = ui.new_child(egui::UiBuilder::new().max_rect(notes_rect));
                 egui::ScrollArea::vertical().show(&mut child, |ui| {
                     ui.label(
-                        egui::RichText::new(if notes.is_empty() { "No notes." } else { &notes }).size(show.notes_px).color(Color32::from_gray(230)),
+                        egui::RichText::new(if notes.is_empty() { l10n("No notes.") } else { &notes })
+                            .size(show.notes_px)
+                            .color(Color32::from_gray(230)), // //// Neoffice — in the person's language (l10n)
                     );
                 });
             });

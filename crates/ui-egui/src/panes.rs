@@ -249,7 +249,8 @@ fn format_shape(app: &mut SlideApp, ui: &mut Ui) {
                     ("Inner", "inner"),
                     ("Perspective", "perspective"),
                 ] {
-                    if ui.button(l).clicked() {
+                    if ui.button(l10n(l)).clicked() {
+                        // //// Neoffice — in the person's language (l10n)
                         run(app, "shape.effects", json!({"shadow": v}));
                     }
                 }
@@ -278,7 +279,8 @@ fn format_shape(app: &mut SlideApp, ui: &mut Ui) {
             ui.label(egui::RichText::new(l10n("Reflection")).font(theme::bold(13.0))); // //// Neoffice — in the person's language (l10n)
             ui.horizontal_wrapped(|ui| {
                 for (l, v) in [("None", "none"), ("Tight", "tight"), ("Half", "half"), ("Full", "full")] {
-                    if ui.button(l).clicked() {
+                    if ui.button(l10n(l)).clicked() {
+                        // //// Neoffice — in the person's language (l10n)
                         run(app, "shape.effects", json!({"reflection": v}));
                     }
                 }
@@ -711,10 +713,11 @@ fn picture_fill_options(app: &mut SlideApp, ui: &mut Ui, id: u32, pf: &deckcraft
             for (label, key, opts, cur) in [("Alignment", "align", &aligns[..], align), ("Mirror type", "mirror", &mirrors[..], flip)] {
                 ui.horizontal(|ui| {
                     ui.add_sized(vec2(90.0, 20.0), egui::Label::new(l10n(label))); // //// Neoffice — in the person's language (l10n)
-                    let shown = opts.iter().find(|(k, _)| k == cur).map_or(opts[0].1, |(_, l)| *l);
+                    let shown = l10n(opts.iter().find(|(k, _)| k == cur).map_or(opts[0].1, |(_, l)| *l)); // //// Neoffice — in the person's language (l10n)
                     egui::ComboBox::from_id_salt(("picfill", id, key)).selected_text(shown).show_ui(ui, |ui| {
                         for (k, l) in opts {
-                            if ui.selectable_label(*k == cur.as_str(), *l).clicked() {
+                            if ui.selectable_label(*k == cur.as_str(), l10n(l)).clicked() {
+                                // //// Neoffice — in the person's language (l10n)
                                 run(app, "shape.fill", json!({"pictureProps": {key: k}}));
                             }
                         }
@@ -764,9 +767,11 @@ fn preset_label(name: &str) -> String {
 fn three_d_combo(app: &mut SlideApp, ui: &mut Ui, id: u32, label: &str, key: &str, cur: &str, options: &[&str]) {
     ui.horizontal(|ui| {
         ui.add_sized(vec2(90.0, 20.0), egui::Label::new(l10n(label))); // //// Neoffice — in the person's language (l10n)
-        egui::ComboBox::from_id_salt(("3d", id, key)).selected_text(preset_label(cur)).width(170.0).show_ui(ui, |ui| {
+        egui::ComboBox::from_id_salt(("3d", id, key)).selected_text(l10n(&preset_label(cur))).width(170.0).show_ui(ui, |ui| {
+            // //// Neoffice — in the person's language (l10n)
             for o in options {
-                if ui.selectable_label(*o == cur, preset_label(o)).clicked() {
+                if ui.selectable_label(*o == cur, l10n(&preset_label(o))).clicked() {
+                    // //// Neoffice — in the person's language (l10n)
                     run(app, "shape.effects", json!({"threeD": {key: o}}));
                 }
             }
@@ -992,7 +997,8 @@ fn picture_background_options(app: &mut SlideApp, ui: &mut Ui, pf: &deckcraft_mo
     };
     ui.horizontal(|ui| {
         ui.add_sized(vec2(72.0, 20.0), egui::Label::new(l10n("Alignment"))); // //// Neoffice — in the person's language (l10n)
-        egui::ComboBox::from_id_salt("bg-align").selected_text(align_name).width(140.0).show_ui(ui, |ui| {
+        egui::ComboBox::from_id_salt("bg-align").selected_text(l10n(align_name)).width(140.0).show_ui(ui, |ui| {
+            // //// Neoffice — in the person's language (l10n)
             for (k, l) in [
                 ("tl", "Top Left"),
                 ("t", "Top"),
@@ -1004,7 +1010,8 @@ fn picture_background_options(app: &mut SlideApp, ui: &mut Ui, pf: &deckcraft_mo
                 ("b", "Bottom"),
                 ("br", "Bottom Right"),
             ] {
-                if ui.selectable_label(align == k, l).clicked() {
+                if ui.selectable_label(align == k, l10n(l)).clicked() {
+                    // //// Neoffice — in the person's language (l10n)
                     run(app, "design.background", json!({"pictureProps": {"align": k}}));
                 }
             }
@@ -1018,9 +1025,11 @@ fn picture_background_options(app: &mut SlideApp, ui: &mut Ui, pf: &deckcraft_mo
     };
     ui.horizontal(|ui| {
         ui.add_sized(vec2(72.0, 20.0), egui::Label::new(l10n("Mirror"))); // //// Neoffice — in the person's language (l10n)
-        egui::ComboBox::from_id_salt("bg-mirror").selected_text(mirror_name).width(140.0).show_ui(ui, |ui| {
+        egui::ComboBox::from_id_salt("bg-mirror").selected_text(l10n(mirror_name)).width(140.0).show_ui(ui, |ui| {
+            // //// Neoffice — in the person's language (l10n)
             for (k, l) in [("none", "None"), ("x", "Horizontal"), ("y", "Vertical"), ("xy", "Both")] {
-                if ui.selectable_label(flip == k, l).clicked() {
+                if ui.selectable_label(flip == k, l10n(l)).clicked() {
+                    // //// Neoffice — in the person's language (l10n)
                     run(app, "design.background", json!({"pictureProps": {"mirror": k}}));
                 }
             }
@@ -1148,7 +1157,8 @@ fn animation(app: &mut SlideApp, ui: &mut Ui) {
         }
         resp.context_menu(|ui| {
             for (l, v) in [("Start On Click", "onClick"), ("Start With Previous", "withPrevious"), ("Start After Previous", "afterPrevious")] {
-                if ui.button(l).clicked() {
+                if ui.button(l10n(l)).clicked() {
+                    // //// Neoffice — in the person's language (l10n)
                     run(app, "animation.timing", json!({"index": i, "start": v}));
                     ui.close();
                 }

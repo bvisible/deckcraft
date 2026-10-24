@@ -188,7 +188,7 @@ their own `//// Neoffice — added file` header.
   slide show (`show.rs`), the canvas, thumbnail and sorter menus (`canvas.rs`, `menus.rs`, `thumbs.rs`, `sorter.rs`),
   the command palette (`menus.rs::palette_items`, which still finds a command by its English name and its id), `opening.rs`, `doc_window.rs`, the toasts and status messages
   (`lib.rs::fresh_status` when shown, `notify`, through `l10n_owned`; `status` keeps the English that `inspect` reports) and the Print page (its PDF sentence, the range example, the
-  paper names). Ids stay English (`app.ui.tab`, QAT entries, `Page::label` as keys).
+  paper names), with the choices of their lists and combo boxes, the items of the menus built from a list (the canvas's Cut, Copy, Paste, the ribbon's drop-downs, the transition sounds, Merge Shapes, the artistic effects) and the colour picker's words. Ids stay English (`app.ui.tab`, QAT entries, `Page::label` as keys).
   The language: `DECKCRAFT_LANGUAGE`, then the one the hosting page names (`?lang=`, else `?locale=`, which the Drive
   of the Suite sets to the person's language, read by `apps/deckcraft-web/src/web.rs`), then the system's or the
   browser's; English otherwise. Tests speak English unless they ask (`speak_in_tests`). Still English: the engine's

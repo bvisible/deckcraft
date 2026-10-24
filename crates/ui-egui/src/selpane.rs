@@ -380,7 +380,8 @@ fn context_menu(app: &mut SlideApp, resp: &egui::Response, row: &Row) {
             ("Send Backward", "arrange.sendBackward"),
             ("Send to Back", "arrange.sendToBack"),
         ] {
-            if ui.button(label).clicked() {
+            if ui.button(l10n(label)).clicked() {
+                // //// Neoffice — in the person's language (l10n)
                 run(app, cmd, json!({"ids": [row.id]}));
                 ui.close();
             }

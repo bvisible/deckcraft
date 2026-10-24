@@ -476,7 +476,7 @@ fn slides_group(app: &mut SlideApp, ui: &mut Ui) {
                 }
                 let desktop = app.services.pick_open.is_some();
                 for (label, keep) in [("Reuse Slides…", false), ("Reuse Slides (Keep Source Formatting)…", true)] {
-                    let r = ui.add_enabled(desktop, egui::Button::new(label));
+                    let r = ui.add_enabled(desktop, egui::Button::new(l10n(label))); // //// Neoffice — in the person's language (l10n)
                     if r.clicked() {
                         run(app, "app.reuseSlidesDialog", json!({"keepFormatting": keep}));
                     }
@@ -575,7 +575,8 @@ fn font_group(app: &mut SlideApp, ui: &mut Ui, st: &Value) {
                 let r = icon_toggle(ui, Icon::CharSpacing, "Character Spacing", en, false);
                 egui::Popup::menu(&r).show(|ui| {
                     for (label, pt) in [("Very Tight", -3.0), ("Tight", -1.5), ("Normal", 0.0), ("Loose", 3.0), ("Very Loose", 6.0)] {
-                        if ui.button(label).clicked() {
+                        if ui.button(l10n(label)).clicked() {
+                            // //// Neoffice — in the person's language (l10n)
                             run(app, "format.spacing", json!({"pt": pt}));
                         }
                     }
@@ -589,7 +590,8 @@ fn font_group(app: &mut SlideApp, ui: &mut Ui, st: &Value) {
                         ("Capitalize Each Word", "title"),
                         ("tOGGLE cASE", "toggle"),
                     ] {
-                        if ui.button(label).clicked() {
+                        if ui.button(l10n(label)).clicked() {
+                            // //// Neoffice — in the person's language (l10n)
                             run(app, "format.case", json!({"mode": mode}));
                         }
                     }
@@ -779,7 +781,8 @@ fn paragraph_group(app: &mut SlideApp, ui: &mut Ui, st: &Value) {
                             ("a) b) c)", "alphaLcParenR"),
                             ("a. b. c.", "alphaLcPeriod"),
                         ] {
-                            if ui.button(label).clicked() {
+                            if ui.button(l10n(label)).clicked() {
+                                // //// Neoffice — in the person's language (l10n)
                                 run(app, "format.numbering", json!({"on": true, "scheme": sch}));
                             }
                         }
@@ -835,7 +838,8 @@ fn paragraph_group(app: &mut SlideApp, ui: &mut Ui, st: &Value) {
                         ("Rotate all text 270°", "rotate270"),
                         ("Stacked", "stacked"),
                     ] {
-                        if ui.button(l).clicked() {
+                        if ui.button(l10n(l)).clicked() {
+                            // //// Neoffice — in the person's language (l10n)
                             run(app, "format.direction", json!({"dir": d}));
                         }
                     }
@@ -843,7 +847,8 @@ fn paragraph_group(app: &mut SlideApp, ui: &mut Ui, st: &Value) {
                 let r = icon_toggle(ui, Icon::AlignText, "Align Text", en, false);
                 egui::Popup::menu(&r).show(|ui| {
                     for (l, a) in [("Top", "top"), ("Middle", "middle"), ("Bottom", "bottom")] {
-                        if ui.button(l).clicked() {
+                        if ui.button(l10n(l)).clicked() {
+                            // //// Neoffice — in the person's language (l10n)
                             run(app, "format.anchor", json!({"anchor": a}));
                         }
                     }
@@ -1030,7 +1035,8 @@ pub fn outline_menu(app: &mut SlideApp, ui: &mut Ui, sc: &deckcraft_color::Color
             ("Long Dash", "lgDash"),
             ("Long Dash Dot", "lgDashDot"),
         ] {
-            if ui.button(l).clicked() {
+            if ui.button(l10n(l)).clicked() {
+                // //// Neoffice — in the person's language (l10n)
                 run(app, "shape.line", json!({"dash": d}));
                 ui.close();
             }
@@ -1046,7 +1052,8 @@ pub fn outline_menu(app: &mut SlideApp, ui: &mut Ui, sc: &deckcraft_color::Color
             ("Stealth end", "none", "stealth"),
             ("Oval ends", "oval", "oval"),
         ] {
-            if ui.button(l).clicked() {
+            if ui.button(l10n(l)).clicked() {
+                // //// Neoffice — in the person's language (l10n)
                 run(app, "shape.line", json!({"head": h, "tail": tl}));
                 ui.close();
             }
@@ -1065,7 +1072,8 @@ pub fn effects_menu(app: &mut SlideApp, ui: &mut Ui) {
             ("Inner", "inner"),
             ("Perspective", "perspective"),
         ] {
-            if ui.button(l).clicked() {
+            if ui.button(l10n(l)).clicked() {
+                // //// Neoffice — in the person's language (l10n)
                 run(app, "shape.effects", json!({"shadow": v}));
             }
         }
@@ -1073,7 +1081,8 @@ pub fn effects_menu(app: &mut SlideApp, ui: &mut Ui) {
     ui.menu_button(l10n("Reflection"), |ui| {
         // //// Neoffice — in the person's language (l10n)
         for (l, v) in [("No Reflection", "none"), ("Tight", "tight"), ("Half", "half"), ("Full", "full")] {
-            if ui.button(l).clicked() {
+            if ui.button(l10n(l)).clicked() {
+                // //// Neoffice — in the person's language (l10n)
                 run(app, "shape.effects", json!({"reflection": v}));
             }
         }
@@ -1772,7 +1781,8 @@ fn transitions(app: &mut SlideApp, ui: &mut Ui) {
         let r = big_button(ui, Icon::EffectOptions, "Effect\nOptions", !rows.is_empty());
         egui::Popup::menu(&r).show(|ui| {
             for &(o, on) in &rows {
-                if ui.selectable_label(on, deckcraft_model::anim::transition_option_label(&kind, o)).clicked() {
+                if ui.selectable_label(on, l10n(&deckcraft_model::anim::transition_option_label(&kind, o))).clicked() {
+                    // //// Neoffice — in the person's language (l10n)
                     run(app, "transition.options", json!({"option": o}));
                     ui.close();
                 }
@@ -1789,18 +1799,21 @@ fn transitions(app: &mut SlideApp, ui: &mut Ui) {
                     .as_ref()
                     .and_then(|t| t.sound)
                     .and_then(|m| app.session.active().and_then(|d| d.doc.media(m).map(|i| i.name.trim_end_matches(".wav").to_string())))
-                    .unwrap_or_else(|| if stop { "[Stop Previous Sound]".into() } else { "[No Sound]".into() });
+                    .unwrap_or_else(|| l10n(if stop { "[Stop Previous Sound]" } else { "[No Sound]" }).to_string()); // //// Neoffice — in the person's language (l10n)
                 egui::ComboBox::from_id_salt("transition_sound").width(140.0).selected_text(name).show_ui(ui, |ui| {
                     let none = cur.as_ref().is_none_or(|t| t.sound.is_none() && !t.stop_sound);
-                    if ui.selectable_label(none, "[No Sound]").clicked() {
+                    if ui.selectable_label(none, l10n("[No Sound]")).clicked() {
+                        // //// Neoffice — in the person's language (l10n)
                         run(app, "transition.sound", json!({"none": true}));
                     }
-                    if ui.selectable_label(stop, "[Stop Previous Sound]").clicked() {
+                    if ui.selectable_label(stop, l10n("[Stop Previous Sound]")).clicked() {
+                        // //// Neoffice — in the person's language (l10n)
                         run(app, "transition.sound", json!({"stopPrevious": true}));
                     }
                     ui.separator();
                     for (id, label) in deckcraft_engine::sounds::BUILTIN {
-                        if ui.button(label).clicked() {
+                        if ui.button(l10n(label)).clicked() {
+                            // //// Neoffice — in the person's language (l10n)
                             let lp = cur.as_ref().is_some_and(|t| t.sound_loop);
                             run(app, "transition.sound", json!({"builtin": id, "loop": lp}));
                         }
@@ -2029,7 +2042,8 @@ fn animations(app: &mut SlideApp, ui: &mut Ui) {
         let r = big_button(ui, Icon::EffectOptions, "Effect\nOptions", !effect_rows.is_empty());
         egui::Popup::menu(&r).show(|ui| {
             for &(o, on) in &effect_rows {
-                if ui.selectable_label(on, option_label(o)).clicked() {
+                if ui.selectable_label(on, l10n(&option_label(o))).clicked() {
+                    // //// Neoffice — in the person's language (l10n)
                     run(app, "animation.options", json!({"option": o}));
                     ui.close();
                 }
@@ -2037,7 +2051,8 @@ fn animations(app: &mut SlideApp, ui: &mut Ui) {
             ui.separator();
             for &(id, on) in &build_rows {
                 let label = if id == "byParagraph" { "By Paragraph" } else { "As One Object" };
-                if ui.selectable_label(on, label).clicked() {
+                if ui.selectable_label(on, l10n(label)).clicked() {
+                    // //// Neoffice — in the person's language (l10n)
                     run(app, "animation.options", json!({"textBuild": id}));
                     ui.close();
                 }
@@ -2105,7 +2120,8 @@ fn animations(app: &mut SlideApp, ui: &mut Ui) {
                 });
                 dropdown(ui, "astart", s.unwrap_or(""), 112.0, cur.is_some(), |ui| {
                     for (l, v) in [("On Click", "onClick"), ("With Previous", "withPrevious"), ("After Previous", "afterPrevious")] {
-                        if ui.button(l).clicked() {
+                        if ui.button(l10n(l)).clicked() {
+                            // //// Neoffice — in the person's language (l10n)
                             run(app, "animation.timing", json!({"start": v}));
                             ui.close();
                         }
@@ -2511,7 +2527,8 @@ fn shape_format(app: &mut SlideApp, ui: &mut Ui) {
         let r = big_button(ui, Icon::MergeShapes, "Merge\nShapes", can_merge).on_hover_text(l10n("Merge Shapes")); // //// Neoffice — in the person's language (l10n)
         egui::Popup::menu(&r).show(|ui| {
             for (op, label) in deckcraft_engine::cmd::merge::OPS {
-                if ui.button(label).clicked() {
+                if ui.button(l10n(label)).clicked() {
+                    // //// Neoffice — in the person's language (l10n)
                     run(app, "shape.merge", json!({"op": op}));
                     ui.close();
                 }
@@ -2680,7 +2697,8 @@ fn picture_format(app: &mut SlideApp, ui: &mut Ui) {
         let r = big_button(ui, Icon::RemoveBackground, "Remove\nBackground", enabled(app, "picture.removeBackground"));
         egui::Popup::menu(&r).show(|ui| {
             for (label, tol) in [("Remove Background", 20.0), ("Remove More (looser)", 35.0), ("Remove Less (tighter)", 10.0)] {
-                if ui.button(label).clicked() {
+                if ui.button(l10n(label)).clicked() {
+                    // //// Neoffice — in the person's language (l10n)
                     run(app, "picture.removeBackground", json!({"tolerance": tol}));
                 }
             }
@@ -2748,7 +2766,8 @@ fn picture_format(app: &mut SlideApp, ui: &mut Ui) {
                 run(app, "picture.artisticEffect", json!({"effect": "none"}));
             }
             for (e, l) in deckcraft_engine::cmd::artistic::EFFECTS {
-                if ui.button(*l).clicked() {
+                if ui.button(l10n(l)).clicked() {
+                    // //// Neoffice — in the person's language (l10n)
                     run(app, "picture.artisticEffect", json!({"effect": e}));
                 }
             }
@@ -2817,7 +2836,8 @@ fn picture_format(app: &mut SlideApp, ui: &mut Ui) {
                     ("Dash Dot", "dashDot"),
                     ("Long Dash", "lgDash"),
                 ] {
-                    if ui.button(l).clicked() {
+                    if ui.button(l10n(l)).clicked() {
+                        // //// Neoffice — in the person's language (l10n)
                         run(app, "shape.line", json!({"dash": d}));
                     }
                 }
@@ -2840,7 +2860,8 @@ fn picture_format(app: &mut SlideApp, ui: &mut Ui) {
             }
             ui.separator();
             for (l, v) in [("Crop 10% each side", 0.1), ("Crop 20% each side", 0.2), ("Reset Crop", 0.0)] {
-                if ui.button(l).clicked() {
+                if ui.button(l10n(l)).clicked() {
+                    // //// Neoffice — in the person's language (l10n)
                     run(app, "picture.crop", json!({"left": v, "top": v, "right": v, "bottom": v}));
                 }
             }
@@ -3151,7 +3172,8 @@ fn table_layout(app: &mut SlideApp, ui: &mut Ui) {
                 ui.menu_button(l10n("Cell Margins"), |ui| {
                     // //// Neoffice — in the person's language (l10n)
                     for (l, preset) in [("Normal", "normal"), ("None", "none"), ("Narrow", "narrow"), ("Wide", "wide")] {
-                        if ui.button(l).clicked() {
+                        if ui.button(l10n(l)).clicked() {
+                            // //// Neoffice — in the person's language (l10n)
                             run(app, "table.cellMargins", json!({"preset": preset}));
                             ui.close();
                         }
@@ -3209,7 +3231,8 @@ fn smartart_design(app: &mut SlideApp, ui: &mut Ui) {
                     ("Add Shape Below", "below"),
                     ("Add Assistant", "assistant"),
                 ] {
-                    if ui.button(label).clicked() {
+                    if ui.button(l10n(label)).clicked() {
+                        // //// Neoffice — in the person's language (l10n)
                         let index = if n == 0 { Value::Null } else { json!(at) };
                         run(app, "smartArt.addNode", json!({"id": gid, "index": index, "position": pos}));
                     }
@@ -3263,7 +3286,8 @@ fn smartart_design(app: &mut SlideApp, ui: &mut Ui) {
                     ui.separator();
                 }
                 let on = colors == k || (colors.is_empty() && k == "colorful");
-                if ui.selectable_label(on, label).clicked() {
+                if ui.selectable_label(on, l10n(label)).clicked() {
+                    // //// Neoffice — in the person's language (l10n)
                     run(app, "smartArt.colors", json!({"id": gid, "colors": k}));
                 }
             }
@@ -3276,7 +3300,8 @@ fn smartart_design(app: &mut SlideApp, ui: &mut Ui) {
                     ui.label(l10n("3-D")); // //// Neoffice — in the person's language (l10n)
                 }
                 let on = style == k || (style.is_empty() && k == "flat");
-                if ui.selectable_label(on, label).clicked() {
+                if ui.selectable_label(on, l10n(label)).clicked() {
+                    // //// Neoffice — in the person's language (l10n)
                     run(app, "smartArt.style", json!({"id": gid, "style": k}));
                 }
             }
@@ -3337,7 +3362,8 @@ fn playback(app: &mut SlideApp, ui: &mut Ui) {
         let r = big_button(ui, Icon::Volume, "Volume", m.is_some());
         egui::Popup::menu(&r).show(|ui| {
             for (l, v) in [("Low", 0.25), ("Medium", 0.5), ("High", 1.0), ("Mute", 0.0)] {
-                if ui.button(l).clicked() {
+                if ui.button(l10n(l)).clicked() {
+                    // //// Neoffice — in the person's language (l10n)
                     run(app, "media.options", json!({"volume": v}));
                 }
             }
@@ -3390,7 +3416,8 @@ fn slide_master(app: &mut SlideApp, ui: &mut Ui) {
             for (l, k) in
                 [("Content", "content"), ("Text", "text"), ("Picture", "picture"), ("Chart", "chart"), ("Table", "table"), ("Media", "media")]
             {
-                if ui.button(l).clicked() {
+                if ui.button(l10n(l)).clicked() {
+                    // //// Neoffice — in the person's language (l10n)
                     run(app, "master.insertPlaceholder", json!({"kind": k}));
                 }
             }
@@ -3432,7 +3459,8 @@ fn notes_master(app: &mut SlideApp, ui: &mut Ui) {
             rows(ui, |ui| {
                 for (label, key, k) in col {
                     let mut on = shown(app, k);
-                    if ui.checkbox(&mut on, label).changed() {
+                    if ui.checkbox(&mut on, l10n(label)).changed() {
+                        // //// Neoffice — in the person's language (l10n)
                         run(app, "notes.placeholders", json!({ key: on }));
                     }
                 }
@@ -3473,7 +3501,8 @@ fn handout_master(app: &mut SlideApp, ui: &mut Ui) {
                 ("Page Number", "pageNumber", PhType::SlideNum),
             ] {
                 let mut on = shown(app, k);
-                if ui.checkbox(&mut on, label).changed() {
+                if ui.checkbox(&mut on, l10n(label)).changed() {
+                    // //// Neoffice — in the person's language (l10n)
                     run(app, "handout.placeholders", json!({ key: on }));
                 }
             }
@@ -3659,7 +3688,7 @@ fn smooth_corners_row(app: &mut SlideApp, ui: &mut egui::Ui) {
     }
     let usable = radius.is_some() || ui.data(|d| d.get_temp::<(f64, f64)>(key)).is_some();
     ui.horizontal(|ui| {
-        ui.label("Smooth Corners");
+        ui.label(l10n("Smooth Corners")); // //// Neoffice — in the person's language (l10n)
         let mut pct = state.1;
         let resp = ui.add_enabled(usable, egui::Slider::new(&mut pct, 0.0..=100.0).suffix("%").integer());
         let resp = if usable { resp } else { resp.on_disabled_hover_text("For rectangles and rounded rectangles") };
@@ -3682,7 +3711,8 @@ fn zoom_menu(app: &mut SlideApp, ui: &mut Ui) {
     let (mut kind, mut picked): (u8, Vec<usize>) = ui.data_mut(|d| d.get_temp(id).unwrap_or((0, vec![])));
     ui.horizontal(|ui| {
         for (k, label) in [(0u8, "Slide Zoom"), (1, "Section Zoom"), (2, "Summary Zoom")] {
-            if ui.selectable_label(kind == k, label).clicked() && kind != k {
+            if ui.selectable_label(kind == k, l10n(label)).clicked() && kind != k {
+                // //// Neoffice — in the person's language (l10n)
                 kind = k;
                 picked.clear();
             }
@@ -3702,7 +3732,7 @@ fn zoom_menu(app: &mut SlideApp, ui: &mut Ui) {
             .collect()
     };
     if items.is_empty() {
-        ui.label(if kind == 1 { "The presentation has no sections. Add one with Home › Section." } else { "No slides." });
+        ui.label(l10n(if kind == 1 { "The presentation has no sections. Add one with Home › Section." } else { "No slides." })); // //// Neoffice — in the person's language (l10n)
     }
     egui::ScrollArea::vertical().max_height(260.0).show(ui, |ui| {
         for (i, label) in items.iter().enumerate() {
