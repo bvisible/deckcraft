@@ -983,7 +983,8 @@ fn save_as(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage, out: &mut Outcom
     }
     let current = types.iter().find(|s| s.0 == bs.file_type).map_or(SAVE_TYPES[0].1, |s| s.1);
     ui.horizontal(|ui| {
-        egui::ComboBox::from_id_salt("backstage_save_type").width(340.0).selected_text(current).show_ui(ui, |ui| {
+        egui::ComboBox::from_id_salt("backstage_save_type").width(340.0).selected_text(l10n(current)).show_ui(ui, |ui| {
+            // //// Neoffice — in the person's language (l10n)
             // //// Neoffice — see `types` above.
             for &(id, label, _) in &types {
                 if ui.selectable_label(bs.file_type == id, l10n(label)).clicked() {
@@ -1139,7 +1140,8 @@ fn print(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage) {
                 PrintScope::Current => "Print Current Slide",
                 PrintScope::Custom => "Custom Range",
             };
-            egui::ComboBox::from_id_salt("backstage_print_scope").width(240.0).selected_text(scope).show_ui(ui, |ui| {
+            egui::ComboBox::from_id_salt("backstage_print_scope").width(240.0).selected_text(l10n(scope)).show_ui(ui, |ui| {
+                // //// Neoffice — in the person's language (l10n)
                 for (s, label) in
                     [(PrintScope::All, "Print All Slides"), (PrintScope::Current, "Print Current Slide"), (PrintScope::Custom, "Custom Range")]
                 {
@@ -1162,7 +1164,8 @@ fn print(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage) {
             });
             ui.add_space(4.0);
             let layout = LAYOUTS.iter().find(|l| l.0 == bs.print_layout).map_or("Full Page Slides", |l| l.1);
-            egui::ComboBox::from_id_salt("backstage_print_layout").width(240.0).selected_text(layout).show_ui(ui, |ui| {
+            egui::ComboBox::from_id_salt("backstage_print_layout").width(240.0).selected_text(l10n(layout)).show_ui(ui, |ui| {
+                // //// Neoffice — in the person's language (l10n)
                 for (id, label) in LAYOUTS {
                     if ui.selectable_label(bs.print_layout == id, l10n(label)).clicked() {
                         // //// Neoffice — in the person's language (l10n)
@@ -1176,7 +1179,8 @@ fn print(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage) {
             // for notes pages and handouts.
             ui.add_enabled_ui(bs.print_layout != "slides", |ui| {
                 let paper = deckcraft_engine::cmd::file::PAPERS.iter().find(|p| p.0 == bs.print_paper).map_or("Letter", |p| p.1);
-                egui::ComboBox::from_id_salt("backstage_print_paper").width(240.0).selected_text(paper).show_ui(ui, |ui| {
+                egui::ComboBox::from_id_salt("backstage_print_paper").width(240.0).selected_text(l10n(paper)).show_ui(ui, |ui| {
+                    // //// Neoffice — in the person's language (l10n)
                     for (id, label, _) in deckcraft_engine::cmd::file::PAPERS {
                         if ui.selectable_label(bs.print_paper == id, l10n(label)).clicked() {
                             // //// Neoffice — in the person's language (l10n)
@@ -1186,7 +1190,8 @@ fn print(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage) {
                 });
                 ui.add_space(4.0);
                 let orient = if bs.print_landscape { "Landscape Orientation" } else { "Portrait Orientation" };
-                egui::ComboBox::from_id_salt("backstage_print_orientation").width(240.0).selected_text(orient).show_ui(ui, |ui| {
+                egui::ComboBox::from_id_salt("backstage_print_orientation").width(240.0).selected_text(l10n(orient)).show_ui(ui, |ui| {
+                    // //// Neoffice — in the person's language (l10n)
                     for (land, label) in [(false, "Portrait Orientation"), (true, "Landscape Orientation")] {
                         if ui.selectable_label(bs.print_landscape == land, l10n(label)).clicked() {
                             // //// Neoffice — in the person's language (l10n)
@@ -1369,7 +1374,7 @@ fn export(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage) {
                     bullets(ui, &["Several slides on each page of a PDF", "Three a page leaves lines for notes", "Print them for your audience"]);
                     egui::ComboBox::from_id_salt("backstage_handouts")
                         .width(240.0)
-                        .selected_text(format!("{} slides per page", bs.handouts_per_page))
+                        .selected_text(fmt(l10n("{n} slides per page"), &[("n", &bs.handouts_per_page.to_string())])) // //// Neoffice — in the person's language (l10n)
                         .show_ui(ui, |ui| {
                             for n in [1u8, 2, 3, 4, 6, 9] {
                                 if ui
@@ -1442,10 +1447,12 @@ fn account(app: &mut SlideApp, ui: &mut Ui) {
             ui.set_width(340.0);
             heading(ui, "Appearance");
             let dark = app.ui.brightness == theme::Brightness::Dark;
-            egui::ComboBox::from_id_salt("backstage_appearance").width(260.0).selected_text(if dark { "Dark" } else { "Light" }).show_ui(ui, |ui| {
+            // //// Neoffice — the choice and the choices in the person's language (l10n).
+            let shown = l10n(if dark { "Dark" } else { "Light" });
+            egui::ComboBox::from_id_salt("backstage_appearance").width(260.0).selected_text(shown).show_ui(ui, |ui| {
                 for (on, label) in [(false, "Light"), (true, "Dark")] {
                     if ui.selectable_label(dark == on, l10n(label)).clicked() {
-                        // //// Neoffice — in the person's language (l10n)
+                        // //// Neoffice — in the person's language (l10n), see above
                         let _ = app.run("view.dark", json!({"on": on}));
                     }
                 }

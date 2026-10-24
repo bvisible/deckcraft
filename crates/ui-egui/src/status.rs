@@ -24,18 +24,21 @@ pub fn status_bar(app: &mut SlideApp, ui: &mut Ui) {
             _ => l10n("Slide Master").to_string(),
         };
         let p = ui.painter();
-        p.text(pos2(rect.min.x + 14.0, rect.center().y), Align2::LEFT_CENTER, &left, theme::font(12.0), t.text_dim);
+        // //// Neoffice — the counter's width is the language's (« Diapositive 12 sur 30 »): what follows starts after it.
+        let counter = p.text(pos2(rect.min.x + 14.0, rect.center().y), Align2::LEFT_CENTER, &left, theme::font(12.0), t.text_dim);
         // The selection's proofing language; a click opens Review › Language.
         let (lang, no_proof) = crate::dialogs::selected_language(app);
         let name = crate::squiggles::lang_name(&lang) + &if no_proof { format!(" {}", l10n("(not checked)")) } else { String::new() }; // //// Neoffice — in the person's language (l10n)
-        let lr = p.text(pos2(rect.min.x + 120.0, rect.center().y), Align2::LEFT_CENTER, &name, theme::font(12.0), t.text_dim);
+        let lang_x = (counter.max.x + 16.0).max(rect.min.x + 120.0); // //// Neoffice — see `counter`
+        let lr = p.text(pos2(lang_x, rect.center().y), Align2::LEFT_CENTER, &name, theme::font(12.0), t.text_dim);
         if ui.interact(lr.expand(3.0), ui.id().with("status_lang"), Sense::click()).on_hover_text(l10n("Language")).clicked() {
             // //// Neoffice — in the person's language (l10n)
             app.dialog = Some(crate::dialogs::Dialog::new("language"));
         }
         // Transient status message.
         if let Some(msg) = app.fresh_status() {
-            p.text(pos2(rect.min.x + 290.0, rect.center().y), Align2::LEFT_CENTER, &msg, theme::font(12.0), t.accent);
+            let msg_x = (lr.max.x + 24.0).max(rect.min.x + 290.0); // //// Neoffice — after the language, whatever its width
+            p.text(pos2(msg_x, rect.center().y), Align2::LEFT_CENTER, &msg, theme::font(12.0), t.accent);
             ui.ctx().request_repaint_after(std::time::Duration::from_millis(500));
         }
         let mut right = ui.new_child(
