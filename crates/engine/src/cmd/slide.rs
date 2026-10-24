@@ -373,8 +373,12 @@ fn select_slides(s: &mut Session, p: &Value) -> Result<Value> {
 }
 
 fn hide(s: &mut Session, p: &Value) -> Result<Value> {
-    let targets: Vec<usize> = match usize_param(p, "index") {
-        Some(i) => vec![i],
+    // //// Neoffice — an `index` that is no slide of the presentation is refused with a message, as upstream's
+    // slide.delete, slide.duplicate and slide.move do since v0.10.0 (`opt_usize_param`): a negative or fractional one
+    // fell back to the selected slides and hid them, one past the last slide hid nothing and answered as if done (an
+    // empty undo step). Drop when upstream refuses it too.
+    let targets: Vec<usize> = match opt_usize_param(p, "index", "slide.hide")? {
+        Some(i) => vec![existing_slide(s, i, "slide.hide")?],
         None => {
             let st = s.doc()?;
             let v: Vec<usize> = st.selection.slides.iter().filter_map(|id| st.doc.slide_index(*id)).collect();
@@ -391,6 +395,12 @@ fn hide(s: &mut Session, p: &Value) -> Result<Value> {
         }
         Ok(json!({"hidden": value}))
     })
+}
+
+// //// Neoffice — added function: the slide index `i` when the presentation has that slide, else the refusal
+// `index_of` gives ("no slide {i}"), for the commands that take one slide's index or act on the selection.
+fn existing_slide(s: &Session, i: usize, cmd: &str) -> Result<usize> {
+    if i < s.doc()?.doc.slides.len() { Ok(i) } else { Err(bad(cmd, format!("no slide {i}"))) }
 }
 
 /// Re-map a slide's placeholders onto a new layout (content kept, matched by type/index).
@@ -442,8 +452,10 @@ pub fn apply_layout(doc: &mut Presentation, index: usize, layout: LayoutId) -> R
 
 fn set_layout(s: &mut Session, p: &Value) -> Result<Value> {
     let key = p.get("layout").cloned().ok_or_else(|| bad("slide.layout", "missing `layout`"))?;
-    let targets: Vec<usize> = match usize_param(p, "index") {
-        Some(i) => vec![i],
+    // //// Neoffice — an `index` that is no slide is refused (see `hide`): a negative or fractional one re-laid the
+    // selected slides out.
+    let targets: Vec<usize> = match opt_usize_param(p, "index", "slide.layout")? {
+        Some(i) => vec![existing_slide(s, i, "slide.layout")?],
         None => {
             let st = s.doc()?;
             let v: Vec<usize> = st.selection.slides.iter().filter_map(|id| st.doc.slide_index(*id)).collect();
@@ -665,6 +677,36 @@ mod tests {
                 assert_eq!(s.doc().expect("doc").doc.slides.len(), 3, "{cmd} {p}");
             }
         }
+    }
+
+    // //// Neoffice — slide.hide and slide.layout refuse an index that is no slide (negative, fractional, past the last
+    // one), and leave the presentation and its undo history as they were.
+    #[test]
+    fn hide_and_layout_refuse_an_index_that_is_no_slide() {
+        let mut s = Session::with_new();
+        while s.doc().expect("doc").doc.slides.len() < 3 {
+            s.execute("slide.new", &json!({})).expect("new slide");
+        }
+        s.execute("slide.go", &json!({"index": 1})).expect("go to slide 1");
+        let before = s.doc().expect("doc").doc.clone();
+        let selected = s.doc().expect("doc").selection.slides.clone();
+        let undo = s.doc().expect("doc").history.undo.len();
+        for bad in [json!(-1), json!(1.5), json!("1"), json!(3), json!(99)] {
+            for (cmd, p) in [("slide.hide", json!({"index": bad})), ("slide.layout", json!({"layout": "blank", "index": bad}))] {
+                let Err(err) = s.execute(cmd, &p) else { panic!("{cmd} must refuse {p}") };
+                let said = err.to_string();
+                assert!(said.contains("no slide") || said.contains("not a valid index"), "{cmd} {p}: {said}");
+                let st = s.doc().expect("doc");
+                assert!(std::sync::Arc::ptr_eq(&st.doc, &before), "{cmd} {p} changed the presentation");
+                assert_eq!(st.selection.slides, selected, "{cmd} {p} changed the selection");
+                assert_eq!(st.history.undo.len(), undo, "{cmd} {p} left an undo step");
+            }
+        }
+        // A slide that is there still works, and the selection is not what is hidden or re-laid.
+        s.execute("slide.hide", &json!({"index": 2, "hidden": true})).expect("hide slide 2");
+        let st = s.doc().expect("doc");
+        assert!(st.doc.slides[2].hidden && !st.doc.slides[1].hidden);
+        s.execute("slide.layout", &json!({"layout": "blank", "index": 0})).expect("lay slide 0 out");
     }
 
     #[test]
