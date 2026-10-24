@@ -683,13 +683,16 @@ impl SlideApp {
     }
 
     pub fn set_status(&mut self, msg: impl Into<String>) {
-        self.status = Some((msg.into(), now_ms()));
+        // //// Neoffice — a message that is one of the interface's strings shows in the person's language (l10n).
+        let msg = neoffice_i18n::l10n_owned(msg.into());
+        self.status = Some((msg, now_ms()));
     }
 
     /// A message that must be seen wherever the user is: a toast, which also shows over the start
     /// screen and the File tab, where there is no status bar.
     pub fn notify(&mut self, msg: impl Into<String>) {
-        self.toast = Some(toast::Toast { text: msg.into(), at: now_ms() });
+        // //// Neoffice — in the person's language when it is one of the interface's strings (l10n).
+        self.toast = Some(toast::Toast { text: neoffice_i18n::l10n_owned(msg.into()), at: now_ms() });
     }
 
     /// The transient status message while it is fresh; clears it once stale. Both the status bar
@@ -2754,6 +2757,40 @@ mod tests {
         }
         harness.run_steps(3);
         assert_eq!(harness.state().backstage.as_ref().map(|b| b.file_type), Some("pptx"));
+    }
+
+    // //// Neoffice — the Quick Access Toolbar's Save hands the presentation to the hosting page, as Ctrl+S does, also
+    // while a text is being edited. (A click on it seemed lost in a test browser: the page was hidden behind another
+    // tab, where eframe runs no frame of the interface, only the keyboard shortcuts.)
+    #[test]
+    fn the_toolbar_save_hands_the_presentation_to_the_hosting_page() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        let saved = std::sync::Arc::new(AtomicUsize::new(0));
+        let count = std::sync::Arc::clone(&saved);
+        let services = Services {
+            host_owns_documents: true,
+            host_save: Some(Box::new(move |_: &mut deckcraft_engine::DocState| {
+                count.fetch_add(1, Ordering::SeqCst);
+                Ok(())
+            })),
+            ..Default::default()
+        };
+        let mut harness = egui_kittest::Harness::builder().with_size(egui::vec2(1280.0, 800.0)).build_ui_state(
+            |ui, app: &mut SlideApp| {
+                let ctx = ui.ctx().clone();
+                app.logic(&ctx);
+                app.ui(ui);
+            },
+            SlideApp::new(Session::with_new(), services),
+        );
+        harness.run_steps(3);
+        let title = harness.state().session.active().unwrap().doc.slides[0].shapes[0].id.0;
+        harness.state_mut().run("text.edit", json!({"id": title})).unwrap();
+        harness.state_mut().run("text.insert", json!({"text": "Hello"})).unwrap();
+        harness.run_steps(3);
+        harness.get_all_by_label_contains("Save (").next().expect("the toolbar's Save").click();
+        harness.run_steps(3);
+        assert_eq!(saved.load(Ordering::SeqCst), 1, "one click, one save");
     }
 
     // //// Neoffice — the engine's own Cmd+N does not bring a new presentation in beside the one a hosting page gave.

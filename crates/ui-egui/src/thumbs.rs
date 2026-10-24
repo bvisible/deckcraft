@@ -7,6 +7,8 @@ use serde_json::json;
 
 use crate::SlideApp;
 use crate::theme::{self, Tokens};
+// //// Neoffice — the interface in the person's language: DeckCraft has no catalog, see `neoffice_i18n`.
+use crate::neoffice_i18n::l10n;
 
 pub fn show(app: &mut SlideApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
@@ -69,25 +71,30 @@ fn list(app: &mut SlideApp, ui: &mut Ui) {
                 t.text_dim,
             );
             resp.context_menu(|ui| {
-                if ui.button("Rename Section…").clicked() {
+                if ui.button(l10n("Rename Section…")).clicked() {
+                    // //// Neoffice — in the person's language (l10n)
                     let mut d = crate::dialogs::Dialog::new("renameSection");
                     d.params = json!({"index": si, "name": sec.name});
                     app.dialog = Some(d);
                     ui.close();
                 }
-                if ui.button("Remove Section").clicked() {
+                if ui.button(l10n("Remove Section")).clicked() {
+                    // //// Neoffice — in the person's language (l10n)
                     let _ = app.run("section.remove", json!({"index": si}));
                     ui.close();
                 }
-                if ui.button("Remove Section & Slides").clicked() {
+                if ui.button(l10n("Remove Section & Slides")).clicked() {
+                    // //// Neoffice — in the person's language (l10n)
                     let _ = app.run("section.remove", json!({"index": si, "slides": true}));
                     ui.close();
                 }
-                if ui.button("Move Section Up").clicked() {
+                if ui.button(l10n("Move Section Up")).clicked() {
+                    // //// Neoffice — in the person's language (l10n)
                     let _ = app.run("section.move", json!({"index": si, "to": si.saturating_sub(1)}));
                     ui.close();
                 }
-                if ui.button("Move Section Down").clicked() {
+                if ui.button(l10n("Move Section Down")).clicked() {
+                    // //// Neoffice — in the person's language (l10n)
                     let _ = app.run("section.move", json!({"index": si, "to": si + 1}));
                     ui.close();
                 }
@@ -220,24 +227,29 @@ pub fn slide_menu(app: &mut SlideApp, ui: &mut Ui, i: usize) {
         }
     }
     ui.separator();
-    if ui.button("New Slide").clicked() {
+    if ui.button(l10n("New Slide")).clicked() {
+        // //// Neoffice — in the person's language (l10n)
         let _ = app.run("slide.new", json!({}));
         ui.close();
     }
-    if ui.button("Duplicate Slide").clicked() {
+    if ui.button(l10n("Duplicate Slide")).clicked() {
+        // //// Neoffice — in the person's language (l10n)
         let _ = app.run("slide.duplicate", json!({}));
         ui.close();
     }
-    if ui.button("Delete Slide").clicked() {
+    if ui.button(l10n("Delete Slide")).clicked() {
+        // //// Neoffice — in the person's language (l10n)
         let _ = app.run("slide.delete", json!({}));
         ui.close();
     }
     ui.separator();
-    if ui.button("Add Section").clicked() {
+    if ui.button(l10n("Add Section")).clicked() {
+        // //// Neoffice — in the person's language (l10n)
         let _ = app.run("section.add", json!({"at": i}));
         ui.close();
     }
-    ui.menu_button("Layout", |ui| {
+    ui.menu_button(l10n("Layout"), |ui| {
+        // //// Neoffice — in the person's language (l10n)
         let layouts: Vec<(String, u32)> = app
             .session
             .active()
@@ -250,11 +262,13 @@ pub fn slide_menu(app: &mut SlideApp, ui: &mut Ui, i: usize) {
             }
         }
     });
-    if ui.button("Reset Slide").clicked() {
+    if ui.button(l10n("Reset Slide")).clicked() {
+        // //// Neoffice — in the person's language (l10n)
         let _ = app.run("slide.reset", json!({}));
         ui.close();
     }
-    if ui.button("Format Background…").clicked() {
+    if ui.button(l10n("Format Background…")).clicked() {
+        // //// Neoffice — in the person's language (l10n)
         let _ = app.run("view.pane", json!({"pane": "background"}));
         ui.close();
     }

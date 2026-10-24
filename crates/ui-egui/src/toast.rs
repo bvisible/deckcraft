@@ -6,6 +6,8 @@ use egui::{Align2, CornerRadius, Margin, Stroke, vec2};
 use crate::SlideApp;
 use crate::icons::{self, Icon};
 use crate::theme::{self, Tokens};
+// //// Neoffice — the interface in the person's language: DeckCraft has no catalog, see `neoffice_i18n`.
+use crate::neoffice_i18n::l10n;
 
 /// How long a toast stays, in milliseconds.
 const SHOW_MS: f64 = 8000.0;
@@ -65,7 +67,8 @@ pub fn show(app: &mut SlideApp, ctx: &egui::Context) {
                         ui.painter().rect_filled(r, CornerRadius::same(4), t.hover);
                     }
                     icons::paint(ui.painter(), r.shrink(3.0), Icon::Close, t.text_dim, false);
-                    if resp.on_hover_text("Close").clicked() {
+                    if resp.on_hover_text(l10n("Close")).clicked() {
+                        // //// Neoffice — in the person's language (l10n)
                         close = true;
                     }
                 });

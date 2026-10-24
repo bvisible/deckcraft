@@ -238,6 +238,11 @@ pub fn show(app: &mut SlideApp, ui: &mut Ui) {
         cui.spacing_mut().item_spacing.x = 1.0;
         let ui = &mut cui;
         let tab = app.ui.tab.clone();
+        // //// Neoffice — fold a tab whose groups are wider than the ribbon (see `widgets::set_folded`): its width unfolded is
+        // measured whenever it is drawn unfolded, per tab and language, and it folds while that width does not fit.
+        let natural_key = egui::Id::new(("neoffice_ribbon_natural_width", tab.clone(), crate::neoffice_i18n::Lang::system()));
+        let fold = ui.ctx().data(|d| d.get_temp::<f32>(natural_key)).is_some_and(|natural| natural > inner.width() + 0.5);
+        widgets::set_folded(fold);
         match tab.as_str() {
             "Home" => home(app, ui),
             "Insert" => insert(app, ui),
@@ -260,6 +265,12 @@ pub fn show(app: &mut SlideApp, ui: &mut Ui) {
             "Handout Master" => handout_master(app, ui),
             "Notes Master" => notes_master(app, ui),
             _ => {}
+        }
+        // //// Neoffice — see `fold` above.
+        widgets::set_folded(false);
+        if !fold {
+            let natural = ui.min_rect().width();
+            ui.ctx().data_mut(|d| d.insert_temp(natural_key, natural));
         }
     });
 }
@@ -301,7 +312,7 @@ fn photo_album_button(app: &mut SlideApp, ui: &mut Ui) {
 
 fn small(app: &mut SlideApp, ui: &mut Ui, icon: Icon, label: &str, id: &str, p: Value) {
     let en = enabled(app, id);
-    let r = small_button(ui, icon, label, en, false).on_hover_text(tip(id, label));
+    let r = widgets::small_button_tip(ui, icon, label, en, false, tip(id, label)); // //// Neoffice — its own tooltip (widgets::set_folded)
     if r.clicked() {
         run(app, id, p.clone());
     }
@@ -378,7 +389,7 @@ fn clipboard_group(app: &mut SlideApp, ui: &mut Ui) {
             small(app, ui, Icon::Copy, "Copy", "edit.copy", json!({}));
             let on = app.session.painter.is_some();
             let en = enabled(app, "format.painter");
-            let r = small_button(ui, Icon::FormatPainter, "Format", en, on).on_hover_text(l10n("Format Painter (double-click to keep it on)")); // //// Neoffice — in the person's language (l10n)
+            let r = widgets::small_button_tip(ui, Icon::FormatPainter, "Format", en, on, l10n("Format Painter (double-click to keep it on)")); // //// Neoffice — in the person's language (l10n), its own tooltip (widgets::set_folded)
             if r.double_clicked() {
                 run(app, "format.painter", json!({"sticky": true}));
             } else if r.clicked() {
@@ -465,7 +476,7 @@ fn slides_group(app: &mut SlideApp, ui: &mut Ui) {
                     if r.clicked() {
                         run(app, "app.reuseSlidesDialog", json!({"keepFormatting": keep}));
                     }
-                    r.on_disabled_hover_text("Choosing a presentation to reuse needs the desktop app");
+                    r.on_disabled_hover_text(l10n("Choosing a presentation to reuse needs the desktop app")); // //// Neoffice — in the person's language (l10n)
                 }
             });
         }
@@ -1796,7 +1807,7 @@ fn transitions(app: &mut SlideApp, ui: &mut Ui) {
                     if r.clicked() {
                         app.pick_transition_sound();
                     }
-                    r.on_disabled_hover_text("Choosing a sound file needs the desktop app");
+                    r.on_disabled_hover_text(l10n("Choosing a sound file needs the desktop app")); // //// Neoffice — in the person's language (l10n)
                     ui.separator();
                     let has = cur.as_ref().is_some_and(|t| t.sound.is_some());
                     let mut lp = cur.as_ref().is_some_and(|t| t.sound_loop);
@@ -2207,7 +2218,8 @@ fn record(app: &mut SlideApp, ui: &mut Ui) {
 
 fn comment_nav(app: &mut SlideApp, ui: &mut Ui, forward: bool) {
     let (icon, label, id) = if forward { (Icon::NextComment, "Next", "comment.next") } else { (Icon::PrevComment, "Previous", "comment.prev") };
-    if small_button(ui, icon, label, enabled(app, id), false).on_hover_text(tip(id, label)).clicked() {
+    if widgets::small_button_tip(ui, icon, label, enabled(app, id), false, tip(id, label)).clicked() {
+        // //// Neoffice — `small_button_tip`: its own tooltip (widgets::set_folded)
         let params = match app.ui.comment_focus {
             Some((slide, index)) if app.session.active().is_some_and(|d| d.selection.slide == slide) => json!({"slide": slide, "index": index}),
             _ => json!({}),
@@ -2807,7 +2819,8 @@ fn picture_format(app: &mut SlideApp, ui: &mut Ui) {
                 }
             });
         });
-        if ui.small_button("Reset Style").on_hover_text(l10n("Remove the picture style")).clicked() {
+        if ui.small_button(l10n("Reset Style")).on_hover_text(l10n("Remove the picture style")).clicked() {
+            // //// Neoffice — in the person's language (l10n)
             // //// Neoffice — in the person's language (l10n)
             run(app, "picture.style", json!({"style": "none"}));
         }
@@ -3206,9 +3219,16 @@ fn smartart_design(app: &mut SlideApp, ui: &mut Ui) {
             }
         });
         let pictures = kind.starts_with("picture");
-        if small_button(ui, Icon::Picture, "Insert Picture", pictures && n > 0, false)
-            .on_hover_text(l10n("Put a picture in the selected node's picture placeholder")) // //// Neoffice — in the person's language (l10n)
-            .clicked()
+        // //// Neoffice — `small_button_tip`: its own tooltip (widgets::set_folded)
+        if widgets::small_button_tip(
+            ui,
+            Icon::Picture,
+            "Insert Picture",
+            pictures && n > 0,
+            false,
+            l10n("Put a picture in the selected node's picture placeholder"),
+        ) // //// Neoffice — in the person's language (l10n)
+        .clicked()
         {
             run(app, "app.smartArtPictureDialog", json!({"id": gid, "index": at}));
         }

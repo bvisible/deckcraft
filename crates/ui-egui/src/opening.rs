@@ -5,6 +5,8 @@
 use crate::SlideApp;
 use deckcraft_engine::cmd::file::LoadedFile;
 use std::sync::mpsc::{Receiver, TryRecvError};
+// //// Neoffice — the interface in the person's language: DeckCraft has no catalog, see `neoffice_i18n`.
+use crate::neoffice_i18n::l10n;
 
 /// A presentation being read on a background thread.
 pub struct Opening {
@@ -100,7 +102,7 @@ impl SlideApp {
             ui.weak(format!("Reading the file: {secs:.0} s"));
             ui.add_space(6.0);
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                cancel = ui.button("Cancel").clicked();
+                cancel = ui.button(l10n("Cancel")).clicked(); // //// Neoffice — in the person's language (l10n)
             });
         });
         if cancel || ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {

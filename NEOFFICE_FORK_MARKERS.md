@@ -177,12 +177,25 @@ their own `//// Neoffice — added file` header.
   (l10n)` where they are made: inside the widgets of `widgets.rs` (`big_button_ex`, `small_button_ex`, `check_item`,
   `icon_toggle`, `color_split`, `section`, `drop_button`), the side-menu and page helpers of `backstage.rs`, the
   status bar's helpers, and around the literals of `ribbon.rs`, `backstage.rs`, `status.rs` and `qat.rs` (buttons,
-  labels, tooltips, menus, check boxes, hints). Ids stay English (`app.ui.tab`, QAT entries, `Page::label` as keys).
+  labels, tooltips, menus, check boxes, hints), and, from the second pass the same day, of the dialogs (`dialogs.rs`:
+  titles, `field`, `check`, `text_row`, buttons, save prompts), the panes (`panes.rs`, `selpane.rs`, `fillui.rs`), the
+  slide show (`show.rs`), the canvas, thumbnail and sorter menus (`canvas.rs`, `menus.rs`, `thumbs.rs`, `sorter.rs`),
+  the command palette (`menus.rs::palette_items`), `opening.rs`, `doc_window.rs`, the toasts and status messages
+  (`lib.rs::set_status`, `notify`, through `l10n_owned`) and the Print page (its PDF sentence, the range example, the
+  paper names). Ids stay English (`app.ui.tab`, QAT entries, `Page::label` as keys).
   The language: `DECKCRAFT_LANGUAGE`, then the one the hosting page names (`?lang=`, else `?locale=`, which the Drive
   of the Suite sets to the person's language, read by `apps/deckcraft-web/src/web.rs`), then the system's or the
-  browser's; English otherwise. Tests speak English unless they ask (`speak_in_tests`). Still English: the dialogs
-  (`dialogs.rs`), the panes, the slide show, the canvas's menus, the command palette and the engine's messages.
+  browser's; English otherwise. Tests speak English unless they ask (`speak_in_tests`). Still English: the engine's
+  messages, and words made at run time from data (a theme's or a layout's name).
   Drop the tables when upstream ships a catalog; its entries win, ours fill its gaps, as GridCraft's `i18n/neoffice.rs`.
+
+- **A ribbon too narrow for a tab folds its small buttons to icons** (from 2026-10-24; `widgets.rs`, `set_folded`,
+  `small_button_drawn`, `small_button_tip`, and `ribbon.rs::show`): upstream cuts off the groups at the right when a tab
+  is wider than the window, which came sooner with the longer words of French or German. `ribbon::show` measures each
+  tab unfolded (per tab and language) and, while that width does not fit, draws its small buttons with their icon only,
+  as PowerPoint does on a narrow window; the label stays the button's accessible name and becomes its tooltip, unless
+  the caller gives its own (`small_button_tip`). Only the ribbon's layer folds; the menus its buttons open keep their
+  words. Drop it when upstream collapses its groups.
 
 - **The browser build reads its address's flags by name** (`apps/deckcraft-web/src/web.rs`, `has_param`, with
   `URLSearchParams` as `host.rs` reads its own): upstream looked for `webgl`, `blank` and `show` anywhere in the address's

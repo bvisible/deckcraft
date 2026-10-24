@@ -11,6 +11,8 @@ use serde_json::json;
 
 use crate::SlideApp;
 use crate::theme;
+// //// Neoffice — the interface in the person's language: DeckCraft has no catalog, see `neoffice_i18n`.
+use crate::neoffice_i18n::l10n;
 
 pub struct Show {
     pub state: ShowState,
@@ -965,7 +967,8 @@ pub fn ui(app: &mut SlideApp, ui: &mut Ui) {
                 .max_rect(Rect::from_min_max(pos2(bar.max.x - 260.0, bar.min.y), bar.max))
                 .layout(egui::Layout::right_to_left(egui::Align::Center)),
         );
-        if child.button("Close").clicked() {
+        if child.button(l10n("Close")).clicked() {
+            // //// Neoffice — in the person's language (l10n)
             keep = false;
         }
         if child.button("▶").clicked() {
@@ -1849,12 +1852,14 @@ fn presenter_window(ctx: &egui::Context, show: &mut Show, doc: &Presentation, no
                 let notes_head = Rect::from_min_size(pos2(right.min.x, nr.max.y + 12.0), vec2(right.width(), 28.0));
                 let mut head = ui.new_child(egui::UiBuilder::new().max_rect(notes_head));
                 head.horizontal(|ui| {
-                    ui.label(egui::RichText::new("Notes").size(13.0).color(Color32::from_gray(170)));
-                    if ui.button("A-").clicked() {
+                    ui.label(egui::RichText::new(l10n("Notes")).size(13.0).color(Color32::from_gray(170))); // //// Neoffice — in the person's language (l10n)
+                    if ui.button(l10n("A-")).clicked() {
+                        // //// Neoffice — in the person's language (l10n)
                         show.nudge_notes(-NOTES_STEP);
                     }
                     ui.label(egui::RichText::new(format!("{}", show.notes_px as i32)).size(13.0).color(Color32::from_gray(200)));
-                    if ui.button("A+").clicked() {
+                    if ui.button(l10n("A+")).clicked() {
+                        // //// Neoffice — in the person's language (l10n)
                         show.nudge_notes(NOTES_STEP);
                     }
                 });

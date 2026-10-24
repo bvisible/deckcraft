@@ -127,6 +127,13 @@ pub fn l10n(english: &str) -> &str {
     l10n_in(Lang::system(), english)
 }
 
+/// [`l10n`] for a message the code built as a `String` (a status line, a toast): the same `String` back when it is not
+/// one of the interface's strings.
+pub fn l10n_owned(english: String) -> String {
+    let word = l10n(&english);
+    if word == english { english } else { word.to_string() }
+}
+
 /// `english` in `lang`, as [`l10n`] shows it.
 pub fn l10n_in(lang: Lang, english: &str) -> &str {
     static INDEX: OnceLock<HashMap<&'static str, usize>> = OnceLock::new();
@@ -501,6 +508,7 @@ mod tests {
                 // A shortcut in parentheses is the keyboard's, in every language.
                 if let Some(start) = english.rfind(" (")
                     && english.ends_with(')')
+                    && !english[start + 2..english.len() - 1].contains(' ')
                     && english[start..].chars().any(|c| matches!(c, '⌘' | '⇧' | '⌥' | '+') || english[start..].contains("Esc"))
                 {
                     assert!(word.ends_with(&english[start + 1..]), "{what}: the shortcut");
@@ -567,6 +575,45 @@ mod tests {
         for page in ["Informations", "Enregistrer sous", "Imprimer", "Exporter"] {
             assert!(!h.query_all_by_label(page).collect::<Vec<_>>().is_empty(), "{page} in the side menu");
         }
+    }
+
+    #[test]
+    fn a_narrow_ribbon_folds_its_small_buttons_to_icons() {
+        use egui_kittest::Harness;
+        use egui_kittest::kittest::Queryable;
+
+        // In French the Home tab is wider than in English. Unfolded, its last button (Design Ideas) ends at `natural`; in
+        // a window 40 points too narrow for that, the small buttons show their icon only and the last button fits.
+        let _french = speak_in_tests(Lang::Fr);
+        let app = crate::SlideApp::new(deckcraft_engine::Session::with_new(), crate::Services::default());
+        let mut h = Harness::builder().with_size(egui::vec2(2600.0, 900.0)).build_ui_state(
+            |ui, app: &mut crate::SlideApp| {
+                app.logic(ui.ctx());
+                app.ui(ui);
+            },
+            app,
+        );
+        h.run_steps(3);
+        let in_ribbon = |h: &Harness<'_, crate::SlideApp>, label: &str| {
+            h.query_all_by_label(label).map(|n| n.rect()).filter(|r| r.min.y < 160.0).min_by(|a, b| a.min.x.total_cmp(&b.min.x))
+        };
+        let last = in_ribbon(&h, "Idées de création").expect("Design Ideas on the Home tab");
+        let find = in_ribbon(&h, "Rechercher").expect("Find on the Home tab");
+        assert!(find.width() > 40.0, "a wide ribbon shows the labels ({find:?})");
+        let natural = last.max.x;
+
+        let narrow = natural - 40.0;
+        h.set_size(egui::vec2(narrow, 900.0));
+        h.run_steps(4);
+        let last = in_ribbon(&h, "Idées de création").expect("Design Ideas on the Home tab");
+        let find = in_ribbon(&h, "Rechercher").expect("Find, still named, on the folded ribbon");
+        assert!(find.width() < 30.0, "a folded ribbon shows the icons only ({find:?})");
+        assert!(last.max.x <= narrow - 18.0, "the last group fits a folded ribbon ({last:?} in {narrow})");
+
+        h.set_size(egui::vec2(2600.0, 900.0));
+        h.run_steps(4);
+        let find = in_ribbon(&h, "Rechercher").expect("Find on the Home tab");
+        assert!(find.width() > 40.0, "the ribbon unfolds when there is room again ({find:?})");
     }
 
     #[test]

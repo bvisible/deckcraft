@@ -115,10 +115,33 @@ pub fn small_button(ui: &mut Ui, icon: Icon, label: &str, enabled: bool, selecte
 }
 
 pub fn small_button_ex(ui: &mut Ui, icon: Icon, label: &str, enabled: bool, selected: bool, split: bool) -> (Response, Option<Response>) {
+    // //// Neoffice — the drawing moved to `small_button_drawn`, shared with `small_button_tip`.
+    small_button_drawn(ui, icon, label, enabled, selected, split, true)
+}
+
+// //// Neoffice — added: a small button whose caller gives its own tooltip (a shortcut, a description), so a folded
+// ribbon does not add the button's name above it.
+pub fn small_button_tip(ui: &mut Ui, icon: Icon, label: &str, enabled: bool, selected: bool, tip: impl Into<egui::WidgetText>) -> Response {
+    small_button_drawn(ui, icon, label, enabled, selected, false, false).0.on_hover_text(tip)
+}
+
+// //// Neoffice — `small_button_ex`'s body, with `name_tip`: on a folded ribbon (`set_folded`) the button shows its icon
+// only, its label stays its accessible name and, when `name_tip`, becomes its tooltip.
+fn small_button_drawn(
+    ui: &mut Ui,
+    icon: Icon,
+    label: &str,
+    enabled: bool,
+    selected: bool,
+    split: bool,
+    name_tip: bool,
+) -> (Response, Option<Response>) {
     let label = crate::neoffice_i18n::l10n(label); // //// Neoffice — in the person's language (l10n)
+    let folded = folded(ui); // //// Neoffice — see above
+    let shown = if folded { "" } else { label }; // //// Neoffice — see above
     let t = Tokens::get(ui.ctx());
     let font = theme::font(12.0);
-    let tw = if label.is_empty() { 0.0 } else { ui.fonts_mut(|f| f.layout_no_wrap(label.to_string(), font.clone(), t.text).size().x) + 5.0 };
+    let tw = if shown.is_empty() { 0.0 } else { ui.fonts_mut(|f| f.layout_no_wrap(shown.to_string(), font.clone(), t.text).size().x) + 5.0 };
     let arrow_w = if split { 12.0 } else { 0.0 };
     let w = 24.0 + tw + arrow_w;
     let (rect, resp) = ui.allocate_exact_size(vec2(w, 22.0), if enabled { Sense::click() } else { Sense::hover() });
@@ -145,13 +168,34 @@ pub fn small_button_ex(ui: &mut Ui, icon: Icon, label: &str, enabled: bool, sele
         painter.rect_filled(Rect::from_min_max(pos2(rect.max.x - arrow_w, rect.min.y), rect.max), CornerRadius::same(4), c);
     }
     icons::paint(&painter, Rect::from_center_size(pos2(rect.min.x + 12.0, rect.center().y), vec2(17.0, 17.0)), icon, t.text, !enabled);
-    if !label.is_empty() {
-        painter.text(pos2(rect.min.x + 24.0, rect.center().y), Align2::LEFT_CENTER, label, font, if enabled { t.text } else { t.text_faint });
+    if !shown.is_empty() {
+        // //// Neoffice — `shown`: nothing on a folded ribbon.
+        painter.text(pos2(rect.min.x + 24.0, rect.center().y), Align2::LEFT_CENTER, shown, font, if enabled { t.text } else { t.text_faint });
     }
     if split {
         chevron(&painter, pos2(rect.max.x - 6.0, rect.center().y), 2.8, t.text_dim);
     }
-    (if split { main_resp } else { resp }, arrow_resp)
+    let main = if split { main_resp } else { resp }; // //// Neoffice — the name as tooltip on a folded ribbon (see above)
+    let main = if folded && name_tip && !label.is_empty() { main.on_hover_text(label) } else { main }; // //// Neoffice — see above
+    (main, arrow_resp) // //// Neoffice — see above
+}
+
+// //// Neoffice — added: a folded ribbon. When a tab's groups are wider than the ribbon (a narrow window, or the longer
+// words of another language), `ribbon::show` folds it: its small buttons show their icon only, as PowerPoint drops the
+// labels of a narrow ribbon, so the groups at the right are not cut off. Only the ribbon's own layer folds: the menus
+// its buttons open keep their words.
+thread_local! {
+    static FOLDED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Folds (or unfolds) the ribbon drawn from now on (`ribbon::show` sets it around a tab's groups).
+pub fn set_folded(on: bool) {
+    FOLDED.with(|f| f.set(on));
+}
+
+/// Whether a small button drawn in `ui` shows its icon only: the ribbon is folded and `ui` is the ribbon's own layer.
+fn folded(ui: &Ui) -> bool {
+    FOLDED.with(std::cell::Cell::get) && ui.layer_id().order == egui::Order::Background
 }
 
 /// A menu choice ticked in the icon column (Align to Slide…), its text lined up with the

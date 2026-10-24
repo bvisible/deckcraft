@@ -1127,10 +1127,16 @@ fn print(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage) {
                 ui,
                 // //// Neoffice — our builds show our product's name (NEOFFICE_PRODUCT_NAME), upstream's otherwise.
                 &if app.services.pick_save.is_some() {
-                    format!("{} prints through a PDF: it opens in your PDF viewer, where you choose the printer.", crate::brand::name())
+                    fmt(
+                        l10n("{product} prints through a PDF: it opens in your PDF viewer, where you choose the printer."),
+                        &[("product", crate::brand::name())],
+                    ) // //// Neoffice — in the person's language (l10n)
                 } else {
                     // //// Neoffice — our product's name here too.
-                    format!("{} prints through a PDF: it downloads, ready to print from your browser or PDF viewer.", crate::brand::name())
+                    fmt(
+                        l10n("{product} prints through a PDF: it downloads, ready to print from your browser or PDF viewer."),
+                        &[("product", crate::brand::name())],
+                    ) // //// Neoffice — in the person's language (l10n)
                 },
             );
             ui.add_space(14.0);
@@ -1155,7 +1161,7 @@ fn print(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage) {
             ui.add_space(4.0);
             ui.horizontal(|ui| {
                 let l = ui.label(l10n("Slides:")); // //// Neoffice — in the person's language (l10n)
-                let r = ui.add(egui::TextEdit::singleline(&mut bs.print_range).hint_text("e.g. 1-3, 5").desired_width(176.0)).labelled_by(l.id);
+                let r = ui.add(egui::TextEdit::singleline(&mut bs.print_range).hint_text(l10n("e.g. 1-3, 5")).desired_width(176.0)).labelled_by(l.id); // //// Neoffice — in the person's language (l10n)
                 if r.changed() {
                     // Typing a range picks Custom Range, as in PowerPoint.
                     bs.print_scope = if bs.print_range.trim().is_empty() { PrintScope::All } else { PrintScope::Custom };
@@ -1207,7 +1213,8 @@ fn print(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage) {
             }
             ui.checkbox(&mut bs.print_frame, l10n("Frame Slides")); // //// Neoffice — in the person's language (l10n)
             ui.add_space(6.0);
-            if ui.link("Edit Header & Footer").clicked() {
+            if ui.link(l10n("Edit Header & Footer")).clicked() {
+                // //// Neoffice — in the person's language (l10n)
                 let _ = app.run("app.dialog", json!({"id": "headerFooter"}));
             }
         });
@@ -1315,7 +1322,7 @@ fn preview(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage, doc: &deckcraft_
         if prev {
             bs.preview_page = bs.preview_page.saturating_sub(1);
         }
-        ui.label(format!("{} of {}", bs.preview_page + 1, pages.len()));
+        ui.label(fmt(l10n("{n} of {count}"), &[("n", &(bs.preview_page + 1).to_string()), ("count", &pages.len().to_string())])); // //// Neoffice — in the person's language (l10n)
         if icon_button(ui, Icon::ChevronRight, "Next Page", bs.preview_page < last) {
             bs.preview_page = (bs.preview_page + 1).min(last);
         }

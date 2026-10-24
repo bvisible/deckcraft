@@ -6,6 +6,8 @@ use serde_json::json;
 
 use crate::SlideApp;
 use crate::theme::{self, Tokens};
+// //// Neoffice — the interface in the person's language: DeckCraft has no catalog, see `neoffice_i18n`.
+use crate::neoffice_i18n::l10n;
 
 /// Shortcuts the UI handles itself (views, show, zoom, palette, file dialogs). True when consumed.
 pub fn ui_shortcut(app: &mut SlideApp, key: egui::Key, m: Mods) -> bool {
@@ -94,6 +96,8 @@ fn palette_items(session: &deckcraft_engine::Session, q: &str) -> Vec<(String, S
                 .filter(|c| !deckcraft_engine::cmd::needs_arguments(c.3))
                 .map(|c| (c.0.to_string(), crate::brand::label(c.1).to_string(), c.2)),
         )
+        // //// Neoffice — the names in the person's language (l10n), and the search looks for what the person reads.
+        .map(|(id, label, shortcut)| (id, crate::neoffice_i18n::l10n_owned(label), shortcut))
         .filter(|(id, label, _)| q.is_empty() || label.to_lowercase().contains(q) || id.to_lowercase().contains(q))
         .collect();
     items.sort_by_key(|(_, l, _)| !l.to_lowercase().starts_with(q));
@@ -112,7 +116,8 @@ pub fn palette(app: &mut SlideApp, ctx: &egui::Context) {
         .anchor(egui::Align2::CENTER_TOP, egui::vec2(0.0, 90.0))
         .fixed_size(egui::vec2(520.0, 380.0))
         .show(ctx, |ui| {
-            let r = ui.add(egui::TextEdit::singleline(&mut query).hint_text("Search commands…").desired_width(f32::INFINITY).font(theme::font(15.0)));
+            let r = ui
+                .add(egui::TextEdit::singleline(&mut query).hint_text(l10n("Search commands…")).desired_width(f32::INFINITY).font(theme::font(15.0))); // //// Neoffice — in the person's language (l10n)
             r.request_focus();
             let q = query.to_lowercase();
             // //// Neoffice — no New, Open or Close to find when the hosting page opens the presentations (`run` refuses them).

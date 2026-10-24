@@ -12,6 +12,8 @@ use serde_json::json;
 use crate::SlideApp;
 use crate::icons::{self, Icon};
 use crate::theme::{self, Tokens};
+// //// Neoffice — the interface in the person's language: DeckCraft has no catalog, see `neoffice_i18n`.
+use crate::neoffice_i18n::l10n;
 
 pub const ROW_H: f32 = 24.0;
 const INDENT: f32 = 14.0;
@@ -106,6 +108,7 @@ fn row_id(id: u32) -> Id {
 }
 
 fn small_icon_button(ui: &mut Ui, icon: Icon, label: &str, enabled: bool) -> egui::Response {
+    let label = l10n(label); // //// Neoffice — in the person's language (l10n)
     let t = Tokens::get(ui.ctx());
     let (rect, resp) = ui.allocate_exact_size(vec2(24.0, 22.0), if enabled { Sense::click() } else { Sense::hover() });
     resp.widget_info(|| WidgetInfo::labeled(WidgetType::Button, enabled, label));
@@ -126,10 +129,12 @@ pub fn show(app: &mut SlideApp, ui: &mut Ui) {
     let has_sel = !selected.is_empty();
 
     ui.horizontal(|ui| {
-        if ui.add(egui::Button::new("Show All").stroke(Stroke::new(1.0, t.border))).clicked() {
+        if ui.add(egui::Button::new(l10n("Show All")).stroke(Stroke::new(1.0, t.border))).clicked() {
+            // //// Neoffice — in the person's language (l10n)
             run(app, "selection.showAll", json!({}));
         }
-        if ui.add(egui::Button::new("Hide All").stroke(Stroke::new(1.0, t.border))).clicked() {
+        if ui.add(egui::Button::new(l10n("Hide All")).stroke(Stroke::new(1.0, t.border))).clicked() {
+            // //// Neoffice — in the person's language (l10n)
             run(app, "selection.hideAll", json!({}));
         }
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -381,7 +386,8 @@ fn context_menu(app: &mut SlideApp, resp: &egui::Response, row: &Row) {
             }
         }
         ui.separator();
-        if ui.button("Rename").clicked() {
+        if ui.button(l10n("Rename")).clicked() {
+            // //// Neoffice — in the person's language (l10n)
             app.selpane.renaming = Some((row.id, row.name.clone()));
             app.selpane.rename_started = false;
             ui.close();
