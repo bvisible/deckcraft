@@ -10,8 +10,9 @@ At the next upstream merge, `grep -rn "////"` in the source plus this file give 
 picture of what is ours and why.
 
 - **Upstream**: `storytold/deckcraft`, branch `main`.
-- **Base of the divergence**: `fe510bdac68118f2c9a714e69d0ff572e3f9a0c7`, the tag `v0.9.0`, merged on 2026-10-22
-  (before: `688c7ef592c901ca4541c25e210c1b302e4dc066`, the tag `v0.6.1`, where `version-15` was cut on 2026-10-13).
+- **Base of the divergence**: `b47195feec0f0fe4220d8943ad1c8add5dad8072`, the tag `v0.10.0`, merged on 2026-10-24
+  (before: `fe510bdac68118f2c9a714e69d0ff572e3f9a0c7`, the tag `v0.9.0`, merged on 2026-10-22; and
+  `688c7ef592c901ca4541c25e210c1b302e4dc066`, the tag `v0.6.1`, where `version-15` was cut on 2026-10-13).
   Move it at each upstream merge. The check works it out itself (the common ancestor with
   upstream's `main`), so this line is for the reader.
 
@@ -173,11 +174,6 @@ their own `//// Neoffice — added file` header.
   looked as before. Upstream's v0.8 cures the same dashes another way (the Japanese face unhinted, with its own test);
   both stay: ours keeps Latin text in a Latin face.
 
-- **Upstream's fix for the browser build's start, taken early** (`crates/engine/src/recovery.rs`, `instance_id`):
-  upstream's `46dec4a` (#982), merged after v0.9.0 and shipped in v0.10.0. v0.9.0's browser build panics before its
-  first frame ("no pids on this platform": `std::process::id()` on wasm32); the browser clock stands in. The lines are
-  upstream's; the marker goes at the merge of v0.10.0.
-
 - **The browser build has the presentation fonts** (`.github/workflows/neoffice-web.yml`, `crates/fonts/build.rs`, from
   2026-10-22): the web build checks out craft-fonts at the commit upstream's CI pins (`43913056`) and sets
   `CRAFT_FONTS_DIR` (with `CRAFT_FONTS_REQUIRED`), as upstream's release does; before, it drew every presentation in
@@ -202,11 +198,12 @@ their own `//// Neoffice — added file` header.
 
 ## Files that cannot carry a comment
 
-- `Cargo.lock`: the Nora pane's dependencies, `craft-nora` and `craft-nora-ui` from `bvisible/craft-libs` (git, revision
-  `adbcef6c286b6bcd264cc91fbf50dc3f42d60e5a`, the one WordCraft uses) and `sys-locale` 0.3.2 (the person's preferred
+- `Cargo.lock`: the Nora pane's dependencies, `craft-nora` and `craft-nora-ui` from `bvisible/craft-libs` (git, at the revision the
+  workspace `Cargo.toml` names) and `sys-locale` 0.3.2 (the person's preferred
   languages). Nothing else moved. At an upstream merge, take upstream's lock and let cargo add these back (at the v0.9.0
   merge they were added by hand, the three packages and their three lines under `deckcraft-ui-egui`, and checked by the
-  CI's `--locked` builds).
+  CI's `--locked` builds; at the v0.10.0 merge git's own merge of the lock kept them, and gave upstream's lock plus
+  these 33 lines, nothing else).
 
 ## Upstream files left as they are
 
@@ -214,3 +211,7 @@ their own `//// Neoffice — added file` header.
   through the API, like upstream's other workflows (they need upstream's signing, Nix's action, and a weekly Windows
   runner). `.github/dependabot.yml`: Dependabot's version updates do not run on a fork unless someone turns them on,
   which this fork does not do (they would open pull requests; this fork has one branch).
+- `.github/workflows/sonarcloud.yml`, `sonar-project.properties` and `.coderabbit.yaml` (upstream's, since v0.10.0):
+  SonarCloud's scan through `storytold/craft-common-actions` with upstream's project key and secrets, and CodeRabbit's
+  review settings. The workflow is disabled on this fork through the API (it runs on upstream's `main` and on pull
+  requests, neither of which this fork has); the two settings files do nothing without upstream's accounts.
