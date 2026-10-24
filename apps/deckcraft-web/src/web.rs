@@ -17,6 +17,11 @@ const LOADING_ID: &str = "deckcraft_loading";
 
 pub fn start() {
     eframe::WebLogger::init(log::LevelFilter::Info).ok();
+    // //// Neoffice — the interface's language: the one the page names (`?lang=`, else `?locale=`, which the Drive of the
+    // Suite sets to the person's), before anything is drawn; without one, the browser's (`neoffice_i18n`).
+    if let Some(tag) = param("lang").or_else(|| param("locale")) {
+        deckcraft_ui_egui::neoffice_i18n::set_page_language(&tag);
+    }
     wasm_bindgen_futures::spawn_local(async {
         let Some(document) = web_sys::window().and_then(|w| w.document()) else {
             log::error!("no document");
@@ -121,6 +126,11 @@ fn query() -> String {
 // as `host.rs` reads its own, where a substring test of the address found `show` in `showroom`.
 fn has_param(name: &str) -> bool {
     web_sys::UrlSearchParams::new_with_str(&query()).is_ok_and(|params| params.has(name))
+}
+
+// //// Neoffice — added: the value of the address's parameter `name`, when it has a non-empty one.
+fn param(name: &str) -> Option<String> {
+    web_sys::UrlSearchParams::new_with_str(&query()).ok()?.get(name).map(|v| v.trim().to_string()).filter(|v| !v.is_empty())
 }
 
 /// Wraps the app to read dropped files asynchronously (browsers can't read them synchronously)

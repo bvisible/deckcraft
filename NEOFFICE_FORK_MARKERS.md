@@ -154,12 +154,29 @@ their own `//// Neoffice — added file` header.
     (it would otherwise take back the person's own work). An action that changed nothing (a read, a move to another
     slide) answers `"changed": false` and leaves nothing to undo, which newer craft-nora revisions read; a batch's list
     of results can't carry the mark.
-  - **The words** (the pane, its Preferences switch, Undo's two refusals) are in French, German or Italian when the
-    system or the browser prefers one of them (`sys-locale`, `DECKCRAFT_LANGUAGE` first), English otherwise. DeckCraft has
+  - **The words** (the pane, its Preferences switch, Undo's two refusals) are in French, German, Italian or Spanish when the
+    hosting page names one, or the system or the browser prefers one of them (`DECKCRAFT_LANGUAGE` first, then the page's
+    `?lang=` or `?locale=`, then `sys-locale`), English otherwise: the language of the interface (see below). DeckCraft has
     no catalog, so they live in Neoffice's own table, `neoffice_i18n.rs`; French reuses the wording of WordCraft's Nora
     pane. The rest of the Preferences dialog stays English. Errors that come from the engine are its own, in English.
     Since v0.8 the Preferences dialog has Cancel, which puts back what it opened with: the Nora switch is in that snapshot
     (`preferences_snapshot`, `restore_preferences`).
+
+- **The interface in the person's language** (from 2026-10-24; `crates/ui-egui/src/neoffice_i18n.rs`, `l10n`, and its
+  tables, new files under `crates/ui-egui/src/neoffice_i18n/`: `interface_keys.rs` and one table each for French,
+  German, Italian and Spanish, made by Haiku from the English with PowerPoint's own words): DeckCraft has no string
+  catalog, upstream's `main` included (`docs/localization-parity.md`), so its ribbon (tabs, buttons, menus, tooltips),
+  File tab (side menu, pages), status bar and Quick Access Toolbar are drawn through `l10n(english)`, which returns the
+  English itself when the language has no entry. The calls are marked `//// Neoffice — in the person's language
+  (l10n)` where they are made: inside the widgets of `widgets.rs` (`big_button_ex`, `small_button_ex`, `check_item`,
+  `icon_toggle`, `color_split`, `section`, `drop_button`), the side-menu and page helpers of `backstage.rs`, the
+  status bar's helpers, and around the literals of `ribbon.rs`, `backstage.rs`, `status.rs` and `qat.rs` (buttons,
+  labels, tooltips, menus, check boxes, hints). Ids stay English (`app.ui.tab`, QAT entries, `Page::label` as keys).
+  The language: `DECKCRAFT_LANGUAGE`, then the one the hosting page names (`?lang=`, else `?locale=`, which the Drive
+  of the Suite sets to the person's language, read by `apps/deckcraft-web/src/web.rs`), then the system's or the
+  browser's; English otherwise. Tests speak English unless they ask (`speak_in_tests`). Still English: the dialogs
+  (`dialogs.rs`), the panes, the slide show, the canvas's menus, the command palette and the engine's messages.
+  Drop the tables when upstream ships a catalog; its entries win, ours fill its gaps, as GridCraft's `i18n/neoffice.rs`.
 
 - **The browser build reads its address's flags by name** (`apps/deckcraft-web/src/web.rs`, `has_param`, with
   `URLSearchParams` as `host.rs` reads its own): upstream looked for `webgl`, `blank` and `show` anywhere in the address's

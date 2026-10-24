@@ -17,6 +17,8 @@ use serde_json::{Value, json};
 use crate::SlideApp;
 use crate::icons::{self, Icon};
 use crate::theme::{self, Tokens};
+// //// Neoffice — the interface in the person's language: DeckCraft has no catalog, see `neoffice_i18n`.
+use crate::neoffice_i18n::{fmt, l10n};
 
 /// Width of the side menu.
 pub const NAV_W: f32 = 160.0;
@@ -372,7 +374,8 @@ pub fn show(app: &mut SlideApp, ui: &mut Ui) {
                 t.text,
                 false,
             );
-            if resp.on_hover_text("Back (Esc)").clicked() {
+            if resp.on_hover_text(l10n("Back (Esc)")).clicked() {
+                // //// Neoffice — in the person's language (l10n)
                 out.close = true;
             }
         } else {
@@ -423,7 +426,7 @@ pub fn show(app: &mut SlideApp, ui: &mut Ui) {
             egui::Frame::NONE.inner_margin(egui::Margin { left: 48, right: 36, top: 22, bottom: 32 }).show(ui, |ui| {
                 ui.set_max_width(CONTENT_W);
                 if bs.page != Page::Home {
-                    ui.label(RichText::new(bs.page.label()).font(theme::bold(22.0)).color(t.text));
+                    ui.label(RichText::new(l10n(bs.page.label())).font(theme::bold(22.0)).color(t.text)); // //// Neoffice — in the person's language (l10n)
                     ui.add_space(16.0);
                 }
                 // Errors raised on a backstage page (a missing recent file, a failed open) would
@@ -463,7 +466,7 @@ pub fn show(app: &mut SlideApp, ui: &mut Ui) {
 fn nav_item(ui: &mut Ui, nav: Nav, bs: &Backstage, index: usize, t: &Tokens) -> egui::Response {
     let (rect, resp) = ui.allocate_exact_size(vec2(NAV_W, ITEM_H), Sense::click());
     let selected = nav == Nav::Page(bs.page);
-    let label = nav.label();
+    let label = l10n(nav.label()); // //// Neoffice — in the person's language (l10n)
     resp.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::Button, true, selected, label));
     let p = ui.painter();
     let row = rect.shrink2(vec2(6.0, 1.0));
@@ -491,26 +494,26 @@ fn separator(ui: &mut Ui, t: &Tokens) {
 
 fn heading(ui: &mut Ui, text: &str) {
     let t = Tokens::get(ui.ctx());
-    ui.label(RichText::new(text).font(theme::bold(16.0)).color(t.text));
+    ui.label(RichText::new(l10n(text)).font(theme::bold(16.0)).color(t.text)); // //// Neoffice — in the person's language (l10n)
     ui.add_space(8.0);
 }
 
 fn dim(ui: &mut Ui, text: &str) {
     let t = Tokens::get(ui.ctx());
-    ui.label(RichText::new(text).font(theme::font(12.5)).color(t.text_dim));
+    ui.label(RichText::new(l10n(text)).font(theme::font(12.5)).color(t.text_dim)); // //// Neoffice — in the person's language (l10n)
 }
 
 /// A link with an arrow (More themes →): true when clicked.
 fn arrow_link(ui: &mut Ui, text: &str) -> bool {
     let t = Tokens::get(ui.ctx());
-    ui.add(egui::Label::new(RichText::new(format!("{text}  →")).font(theme::font(12.5)).color(t.accent)).sense(Sense::click()))
+    ui.add(egui::Label::new(RichText::new(format!("{}  →", l10n(text))).font(theme::font(12.5)).color(t.accent)).sense(Sense::click())) // //// Neoffice — in the person's language (l10n)
         .on_hover_cursor(egui::CursorIcon::PointingHand)
         .clicked()
 }
 
 /// A search box; true when its text changed.
 fn search(ui: &mut Ui, query: &mut String, hint: &str, width: f32) -> bool {
-    ui.add(egui::TextEdit::singleline(query).hint_text(hint).desired_width(width)).changed()
+    ui.add(egui::TextEdit::singleline(query).hint_text(l10n(hint)).desired_width(width)).changed() // //// Neoffice — in the person's language (l10n)
 }
 
 /// A new-presentation tile: a theme preview drawn in code (or a blank slide) over its name.
@@ -653,7 +656,8 @@ fn recent_list(app: &mut SlideApp, ui: &mut Ui, query: &str, limit: usize) {
             ui.painter().rect_filled(x.rect, CornerRadius::same(3), t.hover);
         }
         icons::paint(ui.painter(), Rect::from_center_size(x.rect.center(), vec2(14.0, 14.0)), Icon::Close, t.text_dim, false);
-        if x.on_hover_text("Remove from Recent").clicked() {
+        if x.on_hover_text(l10n("Remove from Recent")).clicked() {
+            // //// Neoffice — in the person's language (l10n)
             app.forget_recent(&path);
         }
         if resp.clicked() {
@@ -664,6 +668,7 @@ fn recent_list(app: &mut SlideApp, ui: &mut Ui, query: &str, limit: usize) {
 
 /// A large square command button (Print, Create PDF, Check for Issues…).
 fn square_button(ui: &mut Ui, icon: Icon, label: &str, enabled: bool) -> egui::Response {
+    let label = l10n(label); // //// Neoffice — in the person's language (l10n)
     let t = Tokens::get(ui.ctx());
     let (rect, resp) = ui.allocate_exact_size(vec2(88.0, 80.0), if enabled { Sense::click() } else { Sense::hover() });
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, enabled, label));
@@ -679,6 +684,7 @@ fn square_button(ui: &mut Ui, icon: Icon, label: &str, enabled: bool) -> egui::R
 
 /// A row of a page's own list on the left (Open's places, Export's tasks).
 fn place_row(ui: &mut Ui, icon: Icon, label: &str, selected: bool, width: f32) -> egui::Response {
+    let label = l10n(label); // //// Neoffice — in the person's language (l10n)
     let t = Tokens::get(ui.ctx());
     let (rect, resp) = ui.allocate_exact_size(vec2(width, 44.0), Sense::click());
     resp.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::Button, true, selected, label));
@@ -703,7 +709,7 @@ fn task(ui: &mut Ui, icon: Icon, button: &str, title: &str, detail: &str, enable
         ui.add_space(12.0);
         ui.vertical(|ui| {
             ui.add_space(4.0);
-            ui.label(RichText::new(title).font(theme::font(15.0)).color(t.text));
+            ui.label(RichText::new(l10n(title)).font(theme::font(15.0)).color(t.text)); // //// Neoffice — in the person's language (l10n)
             dim(ui, detail);
         });
     });
@@ -727,12 +733,12 @@ fn home(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage, out: &mut Outcome) 
     // not arrived): nothing to create or open here.
     if app.services.host_owns_documents {
         ui.add_space(16.0);
-        ui.label(RichText::new("The page that hosts the editor gives it the presentation to edit.").font(theme::font(14.0)).color(t.text));
+        ui.label(RichText::new(l10n("The page that hosts the editor gives it the presentation to edit.")).font(theme::font(14.0)).color(t.text)); // //// Neoffice — in the person's language (l10n)
         return;
     }
     ui.add_space(18.0);
     ui.horizontal(|ui| {
-        ui.label(RichText::new("New").font(theme::bold(16.0)).color(t.text));
+        ui.label(RichText::new(l10n("New")).font(theme::bold(16.0)).color(t.text)); // //// Neoffice — in the person's language (l10n)
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             if arrow_link(ui, "More themes") {
                 out.page = Some(Page::New);
@@ -743,7 +749,7 @@ fn home(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage, out: &mut Outcome) 
     new_tiles(app, ui, "", 5, true);
     ui.add_space(22.0);
     ui.horizontal(|ui| {
-        ui.label(RichText::new("Templates").font(theme::bold(16.0)).color(t.text));
+        ui.label(RichText::new(l10n("Templates")).font(theme::bold(16.0)).color(t.text)); // //// Neoffice — in the person's language (l10n)
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             if arrow_link(ui, "More templates") {
                 out.page = Some(Page::New);
@@ -754,7 +760,7 @@ fn home(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage, out: &mut Outcome) 
     template_tiles(app, ui, "", 3);
     ui.add_space(22.0);
     ui.horizontal(|ui| {
-        ui.label(RichText::new("Recent").font(theme::bold(16.0)).color(t.text));
+        ui.label(RichText::new(l10n("Recent")).font(theme::bold(16.0)).color(t.text)); // //// Neoffice — in the person's language (l10n)
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             search(ui, &mut bs.query, "Search for a file", 280.0);
         });
@@ -806,12 +812,14 @@ fn open_page(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage) {
         ui.vertical(|ui| {
             ui.set_width(230.0);
             place_row(ui, Icon::Recent, "Recent", true, 220.0);
-            if place_row(ui, Icon::OpenFolder, "Browse", false, 220.0).on_hover_text("Open a presentation from a folder (Ctrl+O)").clicked() {
+            if place_row(ui, Icon::OpenFolder, "Browse", false, 220.0).on_hover_text(l10n("Open a presentation from a folder (Ctrl+O)")).clicked() {
+                // //// Neoffice — in the person's language (l10n)
                 let _ = app.run("app.openDialog", json!({}));
             }
             if app.session.recovery_dir.is_some() {
                 ui.add_space(24.0);
-                if ui.button("Recover Unsaved Presentations").clicked() {
+                if ui.button(l10n("Recover Unsaved Presentations")).clicked() {
+                    // //// Neoffice — in the person's language (l10n)
                     match app.run("file.recovery.open", json!({})) {
                         Ok(v) if v.get("opened").and_then(Value::as_array).is_some_and(|a| a.is_empty()) => {
                             app.set_status("There are no unsaved presentations to recover");
@@ -854,13 +862,15 @@ fn info(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage) {
     if let Some(p) = &path {
         ui.add_space(8.0);
         ui.horizontal(|ui| {
-            if ui.button("Copy path").clicked() {
+            if ui.button(l10n("Copy path")).clicked() {
+                // //// Neoffice — in the person's language (l10n)
                 ui.ctx().copy_text(p.clone());
                 app.set_status("Copied the path");
             }
             #[cfg(not(target_arch = "wasm32"))]
             if let Some(dir) = std::path::Path::new(p).parent().and_then(|d| d.to_str())
-                && ui.button("Open file location").clicked()
+                && ui.button(l10n("Open file location")).clicked()
+            // //// Neoffice — in the person's language (l10n)
             {
                 app.open_url(&format!("file:///{}", dir.replace('\\', "/").trim_start_matches('/')));
             }
@@ -896,7 +906,7 @@ fn info(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage) {
             let size = v.get("bytes").and_then(Value::as_u64).map(format_bytes);
             egui::Grid::new("backstage_props").num_columns(2).spacing(vec2(18.0, 7.0)).show(ui, |ui| {
                 let row = |ui: &mut Ui, k: &str, val: String| {
-                    ui.label(RichText::new(k).color(t.text_dim));
+                    ui.label(RichText::new(l10n(k)).color(t.text_dim)); // //// Neoffice — in the person's language (l10n)
                     ui.label(val);
                     ui.end_row();
                 };
@@ -908,9 +918,9 @@ fn info(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage) {
                 for (i, (key, label, hint)) in PROPERTIES.iter().enumerate() {
                     let saved = props.get(*key).and_then(Value::as_str).unwrap_or("").to_string();
                     let Some(draft) = bs.props.get_mut(i) else { continue };
-                    let l = ui.label(RichText::new(*label).color(t.text_dim));
+                    let l = ui.label(RichText::new(l10n(label)).color(t.text_dim)); // //// Neoffice — in the person's language (l10n)
                     let id = ui.make_persistent_id(("backstage_prop", *key));
-                    let resp = ui.add(egui::TextEdit::singleline(draft).id(id).hint_text(*hint).desired_width(300.0)).labelled_by(l.id);
+                    let resp = ui.add(egui::TextEdit::singleline(draft).id(id).hint_text(l10n(hint)).desired_width(300.0)).labelled_by(l.id); // //// Neoffice — in the person's language (l10n)
                     if resp.lost_focus() && *draft != saved {
                         // Commit first: a click on another field takes the focus before this one is drawn.
                         let mut p = serde_json::Map::new();
@@ -923,7 +933,7 @@ fn info(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage) {
                     }
                     ui.end_row();
                 }
-                row(ui, "Location", path.clone().unwrap_or_else(|| "Not saved yet".into()));
+                row(ui, "Location", path.clone().unwrap_or_else(|| l10n("Not saved yet").into())); // //// Neoffice — in the person's language (l10n)
             });
         });
     });
@@ -976,7 +986,8 @@ fn save_as(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage, out: &mut Outcom
         egui::ComboBox::from_id_salt("backstage_save_type").width(340.0).selected_text(current).show_ui(ui, |ui| {
             // //// Neoffice — see `types` above.
             for &(id, label, _) in &types {
-                if ui.selectable_label(bs.file_type == id, label).clicked() {
+                if ui.selectable_label(bs.file_type == id, l10n(label)).clicked() {
+                    // //// Neoffice — in the person's language (l10n)
                     bs.file_type = id;
                 }
             }
@@ -985,7 +996,7 @@ fn save_as(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage, out: &mut Outcom
         // //// Neoffice — a hosting page stores the presentation (`Services::host_save`): nothing is downloaded.
         let to_page = app.services.host_save.is_some();
         let label = if web && !to_page { "Download" } else { "Save" };
-        let save = ui.add(egui::Button::new(RichText::new(label).color(t.accent_text)).fill(t.accent).min_size(vec2(84.0, 26.0)));
+        let save = ui.add(egui::Button::new(RichText::new(l10n(label)).color(t.accent_text)).fill(t.accent).min_size(vec2(84.0, 26.0))); // //// Neoffice — in the person's language (l10n)
         // //// Neoffice — see `to_page` above.
         let tip = if to_page {
             "Save to the page that hosts the editor"
@@ -994,7 +1005,8 @@ fn save_as(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage, out: &mut Outcom
         } else {
             "Choose where to save"
         };
-        if save.on_hover_text(tip).clicked() {
+        if save.on_hover_text(l10n(tip)).clicked() {
+            // //// Neoffice — in the person's language (l10n)
             let fmt = bs.file_type;
             let done = if matches!(fmt, "pptx" | "deckcraft") {
                 let before = app.session.active().map(|d| (d.path.clone(), d.is_dirty()));
@@ -1131,7 +1143,8 @@ fn print(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage) {
                 for (s, label) in
                     [(PrintScope::All, "Print All Slides"), (PrintScope::Current, "Print Current Slide"), (PrintScope::Custom, "Custom Range")]
                 {
-                    if ui.selectable_label(bs.print_scope == s, label).clicked() {
+                    if ui.selectable_label(bs.print_scope == s, l10n(label)).clicked() {
+                        // //// Neoffice — in the person's language (l10n)
                         bs.print_scope = s;
                         bs.preview_page = 0;
                     }
@@ -1139,7 +1152,7 @@ fn print(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage) {
             });
             ui.add_space(4.0);
             ui.horizontal(|ui| {
-                let l = ui.label("Slides:");
+                let l = ui.label(l10n("Slides:")); // //// Neoffice — in the person's language (l10n)
                 let r = ui.add(egui::TextEdit::singleline(&mut bs.print_range).hint_text("e.g. 1-3, 5").desired_width(176.0)).labelled_by(l.id);
                 if r.changed() {
                     // Typing a range picks Custom Range, as in PowerPoint.
@@ -1151,7 +1164,8 @@ fn print(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage) {
             let layout = LAYOUTS.iter().find(|l| l.0 == bs.print_layout).map_or("Full Page Slides", |l| l.1);
             egui::ComboBox::from_id_salt("backstage_print_layout").width(240.0).selected_text(layout).show_ui(ui, |ui| {
                 for (id, label) in LAYOUTS {
-                    if ui.selectable_label(bs.print_layout == id, label).clicked() {
+                    if ui.selectable_label(bs.print_layout == id, l10n(label)).clicked() {
+                        // //// Neoffice — in the person's language (l10n)
                         bs.print_layout = id;
                         bs.preview_page = 0;
                     }
@@ -1164,7 +1178,8 @@ fn print(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage) {
                 let paper = deckcraft_engine::cmd::file::PAPERS.iter().find(|p| p.0 == bs.print_paper).map_or("Letter", |p| p.1);
                 egui::ComboBox::from_id_salt("backstage_print_paper").width(240.0).selected_text(paper).show_ui(ui, |ui| {
                     for (id, label, _) in deckcraft_engine::cmd::file::PAPERS {
-                        if ui.selectable_label(bs.print_paper == id, label).clicked() {
+                        if ui.selectable_label(bs.print_paper == id, l10n(label)).clicked() {
+                            // //// Neoffice — in the person's language (l10n)
                             bs.print_paper = id;
                         }
                     }
@@ -1173,17 +1188,19 @@ fn print(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage) {
                 let orient = if bs.print_landscape { "Landscape Orientation" } else { "Portrait Orientation" };
                 egui::ComboBox::from_id_salt("backstage_print_orientation").width(240.0).selected_text(orient).show_ui(ui, |ui| {
                     for (land, label) in [(false, "Portrait Orientation"), (true, "Landscape Orientation")] {
-                        if ui.selectable_label(bs.print_landscape == land, label).clicked() {
+                        if ui.selectable_label(bs.print_landscape == land, l10n(label)).clicked() {
+                            // //// Neoffice — in the person's language (l10n)
                             bs.print_landscape = land;
                         }
                     }
                 });
             });
             ui.add_space(4.0);
-            if ui.checkbox(&mut bs.print_hidden, "Print Hidden Slides").changed() {
+            if ui.checkbox(&mut bs.print_hidden, l10n("Print Hidden Slides")).changed() {
+                // //// Neoffice — in the person's language (l10n)
                 bs.preview_page = 0;
             }
-            ui.checkbox(&mut bs.print_frame, "Frame Slides");
+            ui.checkbox(&mut bs.print_frame, l10n("Frame Slides")); // //// Neoffice — in the person's language (l10n)
             ui.add_space(6.0);
             if ui.link("Edit Header & Footer").clicked() {
                 let _ = app.run("app.dialog", json!({"id": "headerFooter"}));
@@ -1308,7 +1325,7 @@ fn icon_button(ui: &mut Ui, icon: Icon, label: &str, enabled: bool) -> bool {
         ui.painter().rect_filled(r, CornerRadius::same(3), t.hover);
     }
     icons::paint(ui.painter(), r.shrink(3.0), icon, t.text, !enabled);
-    resp.on_hover_text(label).clicked()
+    resp.on_hover_text(l10n(label)).clicked() // //// Neoffice — in the person's language (l10n)
 }
 
 /// Export: tasks on the left (Create PDF Document, Create Handouts, Change File Type), the chosen
@@ -1336,26 +1353,30 @@ fn export(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage) {
             ui.set_max_width(560.0);
             match bs.export {
                 ExportTask::Pdf => {
-                    ui.label(RichText::new("Create a PDF Document").font(theme::font(16.0)).color(t.text));
+                    ui.label(RichText::new(l10n("Create a PDF Document")).font(theme::font(16.0)).color(t.text)); // //// Neoffice — in the person's language (l10n)
                     bullets(
                         ui,
                         &["Keeps the layout, fonts and pictures", "Opens on any device with a PDF viewer", "The presentation keeps its own file"],
                     );
-                    ui.checkbox(&mut bs.pdf_hidden, "Include hidden slides");
+                    ui.checkbox(&mut bs.pdf_hidden, l10n("Include hidden slides")); // //// Neoffice — in the person's language (l10n)
                     ui.add_space(10.0);
                     if square_button(ui, Icon::File, "Create PDF", true).clicked() {
                         app.export_as("pdf", json!({"includeHidden": bs.pdf_hidden}));
                     }
                 }
                 ExportTask::Handouts => {
-                    ui.label(RichText::new("Create Handouts").font(theme::font(16.0)).color(t.text));
+                    ui.label(RichText::new(l10n("Create Handouts")).font(theme::font(16.0)).color(t.text)); // //// Neoffice — in the person's language (l10n)
                     bullets(ui, &["Several slides on each page of a PDF", "Three a page leaves lines for notes", "Print them for your audience"]);
                     egui::ComboBox::from_id_salt("backstage_handouts")
                         .width(240.0)
                         .selected_text(format!("{} slides per page", bs.handouts_per_page))
                         .show_ui(ui, |ui| {
                             for n in [1u8, 2, 3, 4, 6, 9] {
-                                if ui.selectable_label(bs.handouts_per_page == n, format!("{n} slides per page")).clicked() {
+                                if ui
+                                    .selectable_label(bs.handouts_per_page == n, fmt(l10n("{n} slides per page"), &[("n", &n.to_string())]))
+                                    .clicked()
+                                {
+                                    // //// Neoffice — in the person's language (l10n)
                                     bs.handouts_per_page = n;
                                 }
                             }
@@ -1366,7 +1387,7 @@ fn export(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage) {
                     }
                 }
                 ExportTask::FileType => {
-                    ui.label(RichText::new("Change File Type").font(theme::font(16.0)).color(t.text));
+                    ui.label(RichText::new(l10n("Change File Type")).font(theme::font(16.0)).color(t.text)); // //// Neoffice — in the person's language (l10n)
                     ui.add_space(8.0);
                     for (id, label, detail) in SAVE_TYPES.iter().filter(|s| s.0 != "pdf") {
                         let selected = bs.file_type == *id;
@@ -1387,8 +1408,8 @@ fn export(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage) {
                     ui.add_space(12.0);
                     let png = bs.file_type == "png";
                     if png {
-                        ui.checkbox(&mut bs.png_transparent, "Transparent background")
-                            .on_hover_text("Leave the slide background out: only what is on the slide is drawn");
+                        ui.checkbox(&mut bs.png_transparent, l10n("Transparent background")) // //// Neoffice — in the person's language (l10n)
+                            .on_hover_text(l10n("Leave the slide background out: only what is on the slide is drawn")); // //// Neoffice — in the person's language (l10n)
                         ui.add_space(8.0);
                     }
                     if square_button(ui, Icon::SaveAs, "Save As", true).clicked() {
@@ -1406,7 +1427,7 @@ fn bullets(ui: &mut Ui, items: &[&str]) {
     for b in items {
         ui.horizontal(|ui| {
             ui.add_space(6.0);
-            ui.label(RichText::new(format!("•  {b}")).font(theme::font(12.5)));
+            ui.label(RichText::new(format!("•  {}", l10n(b))).font(theme::font(12.5))); // //// Neoffice — in the person's language (l10n)
         });
     }
     ui.add_space(10.0);
@@ -1423,7 +1444,8 @@ fn account(app: &mut SlideApp, ui: &mut Ui) {
             let dark = app.ui.brightness == theme::Brightness::Dark;
             egui::ComboBox::from_id_salt("backstage_appearance").width(260.0).selected_text(if dark { "Dark" } else { "Light" }).show_ui(ui, |ui| {
                 for (on, label) in [(false, "Light"), (true, "Dark")] {
-                    if ui.selectable_label(dark == on, label).clicked() {
+                    if ui.selectable_label(dark == on, l10n(label)).clicked() {
+                        // //// Neoffice — in the person's language (l10n)
                         let _ = app.run("view.dark", json!({"on": on}));
                     }
                 }
@@ -1432,7 +1454,13 @@ fn account(app: &mut SlideApp, ui: &mut Ui) {
             heading(ui, "User Information");
             // //// Neoffice — our product's name in our builds; with a hosting page, the presentation is the page's, not the device's.
             if app.services.host_owns_documents {
-                dim(ui, &format!("{} has no accounts of its own: the page that hosts the editor keeps this presentation.", crate::brand::name()));
+                dim(
+                    ui,
+                    &fmt(
+                        l10n("{product} has no accounts of its own: the page that hosts the editor keeps this presentation."),
+                        &[("product", crate::brand::name())],
+                    ),
+                ); // //// Neoffice — in the person's language (l10n)
             } else {
                 dim(
                     ui,

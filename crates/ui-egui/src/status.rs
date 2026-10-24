@@ -7,6 +7,8 @@ use serde_json::json;
 use crate::icons::{self, Icon};
 use crate::theme::{self, Tokens};
 use crate::{SlideApp, ViewMode};
+// //// Neoffice — the interface in the person's language: DeckCraft has no catalog, see `neoffice_i18n`.
+use crate::neoffice_i18n::{fmt, l10n};
 
 pub fn status_bar(app: &mut SlideApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
@@ -15,16 +17,20 @@ pub fn status_bar(app: &mut SlideApp, ui: &mut Ui) {
         let Some(st) = app.session.active() else { return };
         let n = st.doc.slides.len();
         let left = match st.selection.target {
-            deckcraft_engine::Target::Slides => format!("Slide {} of {}", (st.selection.slide + 1).min(n.max(1)), n),
-            _ => "Slide Master".to_string(),
+            // //// Neoffice — in the person's language (l10n), the numbers by name.
+            deckcraft_engine::Target::Slides => {
+                fmt(l10n("Slide {n} of {count}"), &[("n", &(st.selection.slide + 1).min(n.max(1)).to_string()), ("count", &n.to_string())])
+            }
+            _ => l10n("Slide Master").to_string(),
         };
         let p = ui.painter();
         p.text(pos2(rect.min.x + 14.0, rect.center().y), Align2::LEFT_CENTER, &left, theme::font(12.0), t.text_dim);
         // The selection's proofing language; a click opens Review › Language.
         let (lang, no_proof) = crate::dialogs::selected_language(app);
-        let name = crate::squiggles::lang_name(&lang) + if no_proof { " (not checked)" } else { "" };
+        let name = crate::squiggles::lang_name(&lang) + &if no_proof { format!(" {}", l10n("(not checked)")) } else { String::new() }; // //// Neoffice — in the person's language (l10n)
         let lr = p.text(pos2(rect.min.x + 120.0, rect.center().y), Align2::LEFT_CENTER, &name, theme::font(12.0), t.text_dim);
-        if ui.interact(lr.expand(3.0), ui.id().with("status_lang"), Sense::click()).on_hover_text("Language").clicked() {
+        if ui.interact(lr.expand(3.0), ui.id().with("status_lang"), Sense::click()).on_hover_text(l10n("Language")).clicked() {
+            // //// Neoffice — in the person's language (l10n)
             app.dialog = Some(crate::dialogs::Dialog::new("language"));
         }
         // Transient status message.
@@ -89,6 +95,7 @@ pub fn status_bar(app: &mut SlideApp, ui: &mut Ui) {
 }
 
 fn small_icon(ui: &mut Ui, icon: Icon, tip: &str, on: bool) -> egui::Response {
+    let tip = l10n(tip); // //// Neoffice — in the person's language (l10n)
     let t = Tokens::get(ui.ctx());
     let (r, resp) = ui.allocate_exact_size(vec2(26.0, 20.0), Sense::click());
     if on || resp.hovered() {
@@ -99,6 +106,7 @@ fn small_icon(ui: &mut Ui, icon: Icon, tip: &str, on: bool) -> egui::Response {
 }
 
 fn labeled(ui: &mut Ui, icon: Icon, label: &str, on: bool) -> egui::Response {
+    let label = l10n(label); // //// Neoffice — in the person's language (l10n)
     let t = Tokens::get(ui.ctx());
     let w = 22.0 + ui.fonts_mut(|f| f.layout_no_wrap(label.into(), theme::font(12.0), t.text).size().x) + 8.0;
     let (r, resp) = ui.allocate_exact_size(vec2(w, 20.0), Sense::click());
@@ -156,7 +164,7 @@ pub fn notes_pane(app: &mut SlideApp, ui: &mut Ui) {
                 .auto_shrink([false, false])
                 .show(ui, |ui| {
                     crate::notes::editor(ui, &mut draft, &look, |e| {
-                        e.id(id).hint_text("Click to add notes").frame(egui::Frame::NONE).desired_width(f32::INFINITY).desired_rows(2)
+                        e.id(id).hint_text(l10n("Click to add notes")).frame(egui::Frame::NONE).desired_width(f32::INFINITY).desired_rows(2) // //// Neoffice — in the person's language (l10n)
                     })
                 })
                 .inner;
@@ -207,12 +215,13 @@ pub fn notes_pane(app: &mut SlideApp, ui: &mut Ui) {
                             .collect()
                     };
                     if let Some(from) = w.delete_from {
-                        if ui.button(egui::RichText::new("Delete Repeated Word").strong()).clicked() {
+                        if ui.button(egui::RichText::new(l10n("Delete Repeated Word")).strong()).clicked() {
+                            // //// Neoffice — in the person's language (l10n)
                             changed = Some(splice(ls + from, ""));
                             ui.close();
                         }
                     } else if w.suggestions.is_empty() {
-                        ui.label(egui::RichText::new("(no spelling suggestions)").weak());
+                        ui.label(egui::RichText::new(l10n("(no spelling suggestions)")).weak()); // //// Neoffice — in the person's language (l10n)
                     }
                     for to in &w.suggestions {
                         if ui.button(egui::RichText::new(to).strong()).clicked() {
@@ -220,11 +229,13 @@ pub fn notes_pane(app: &mut SlideApp, ui: &mut Ui) {
                             ui.close();
                         }
                     }
-                    if ui.button("Ignore All").clicked() {
+                    if ui.button(l10n("Ignore All")).clicked() {
+                        // //// Neoffice — in the person's language (l10n)
                         app.squiggles.ignore(&w.word);
                         ui.close();
                     }
-                    if w.delete_from.is_none() && ui.button("Add to Dictionary").clicked() {
+                    if w.delete_from.is_none() && ui.button(l10n("Add to Dictionary")).clicked() {
+                        // //// Neoffice — in the person's language (l10n)
                         if let Err(e) = app.session.execute("review.addToDictionary", &json!({"word": w.word})) {
                             app.set_status(e.to_string());
                         }
