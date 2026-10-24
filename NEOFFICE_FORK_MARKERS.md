@@ -109,7 +109,7 @@ their own `//// Neoffice — added file` header.
   (Preferences › Assistant), the web-sys features of `apps/deckcraft-web/Cargo.toml`, `apps/deckcraft-web/src/web.rs` and
   `apps/deckcraft-web/src/main.rs`): Neoffice's assistant, the chat at the right of the window that NeoWrite (WordCraft)
   has, so that the same Nora works in every editor. It is built on `craft-nora` and `craft-nora-ui` from Neoffice's
-  craft-libs fork, at the revision WordCraft uses; to follow a newer one, move the revision in `Cargo.toml`.
+  craft-libs fork, at the revision `Cargo.toml` names (not always WordCraft's); to follow a newer one, move it there.
   - **When it shows.** Off by default. Preferences › Assistant, or `ui.nora` (`on`, or WordCraft's `value`; without
     either it toggles; listed as "Nora" in the command palette), turns it on, and the desktop app keeps the setting
     (`noraPane` in `ui.json`). The browser build keeps no setting, so it opens the pane itself when the page asks for Nora
@@ -133,7 +133,7 @@ their own `//// Neoffice — added file` header.
     `show.fromCurrent`), the switch to another presentation (`window.`), the person's undo history (`edit.undo`,
     `edit.redo`: a batch that undoes would take back their work, and the pane's Undo theirs as Nora's), their clipboard
     (`edit.copy`, `edit.cut`, `edit.paste` with `edit.pasteText`: every open presentation shares it) and media playback, which decodes a file's audio or video (`media.play`, `media.seek`,
-    `media.toggle`, `media.posterFrame`), and except any command with a parameter naming a file (`path`, `file`,
+    `media.toggle`, `media.posterFrame`) or stops it on the person's screen (`media.pause`, `media.stop`, `media.gifPlay`), and except any command with a parameter naming a file (`path`, `file`,
     `filename`, `folder`, `directory`…, at any depth; `dir` is a direction in DeckCraft). The prefixes also refuse
     upstream's `edit.pasteSpecial` (the clipboard) and `view.notesMaster` (under the interface's `view.notes`); the Slide and
     Handout Masters stay Nora's. SelectText: the n-th occurrence

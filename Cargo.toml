@@ -72,8 +72,8 @@ arboard = { version = "3.6", default-features = false }
 
 # //// Neoffice — the Nora assistant pane (crates/ui-egui/src/nora_pane.rs), the one NeoWrite (WordCraft) has, so the
 # same Nora works in every editor. Neoffice's craft-libs fork carries Nora's client core and its egui panel, at the
-# revision WordCraft uses. Both depend on egui only (the same 0.36 as here). To follow a newer craft-libs, move this
-# revision; nothing else changes.
+# revision below (not always WordCraft's). Both depend on egui only (the same 0.36 as here). To follow a newer craft-libs,
+# move this revision; nothing else changes.
 # //// Neoffice — revision da21317 (craft-libs version-15, 23.10.2026): the Stop, Undo offered only for what Nora
 # changed, replies that stay in view, connection errors in the app's language (`NoraPanel::with_error_words`), the
 # file id a hosting page names (`DocumentInfo::file_id`), where a link Nora wrote may lead (`links::web_or_mail`), and
