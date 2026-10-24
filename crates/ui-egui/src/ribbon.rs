@@ -240,10 +240,15 @@ pub fn show(app: &mut SlideApp, ui: &mut Ui) {
         let tab = app.ui.tab.clone();
         // //// Neoffice — fold a tab whose groups are wider than the ribbon (see `widgets::set_folded`): its width unfolded is
         // measured whenever it is drawn unfolded, per tab and language, and it folds while that width does not fit.
+        // When even folded it does not fit (a narrow window), the tab scrolls sideways rather than cutting off its last
+        // groups: its width folded is measured too.
         let natural_key = egui::Id::new(("neoffice_ribbon_natural_width", tab.clone(), crate::neoffice_i18n::Lang::system()));
-        let fold = ui.ctx().data(|d| d.get_temp::<f32>(natural_key)).is_some_and(|natural| natural > inner.width() + 0.5);
+        let folded_key = egui::Id::new(("neoffice_ribbon_folded_width", tab.clone(), crate::neoffice_i18n::Lang::system()));
+        let wider = |key: egui::Id| ui.ctx().data(|d| d.get_temp::<f32>(key)).is_some_and(|width| width > inner.width() + 0.5);
+        let fold = wider(natural_key);
+        let scroll = fold && wider(folded_key);
         widgets::set_folded(fold);
-        match tab.as_str() {
+        let content = |app: &mut SlideApp, ui: &mut Ui| match tab.as_str() {
             "Home" => home(app, ui),
             "Insert" => insert(app, ui),
             "Draw" => draw(app, ui),
@@ -265,16 +270,21 @@ pub fn show(app: &mut SlideApp, ui: &mut Ui) {
             "Handout Master" => handout_master(app, ui),
             "Notes Master" => notes_master(app, ui),
             _ => {}
-        }
+        }; // //// Neoffice — `content`: drawn as it is, or in a sideways scroll (see `fold` above)
+        let width = if scroll {
+            // //// Neoffice — see `fold` above.
+            let area = egui::ScrollArea::horizontal().id_salt(("neoffice_ribbon_scroll", tab.as_str())).auto_shrink([false, true]);
+            area.show(ui, |ui| content(app, ui)).content_size.x
+        } else {
+            content(app, ui);
+            ui.min_rect().width()
+        };
         // //// Neoffice — see `fold` above.
         widgets::set_folded(false);
-        if !fold {
-            let natural = ui.min_rect().width();
-            ui.ctx().data_mut(|d| d.insert_temp(natural_key, natural));
-            // A tab seen for the first time that does not fit folds at the next frame: ask for it.
-            if natural > inner.width() + 0.5 {
-                ui.ctx().request_repaint();
-            }
+        ui.ctx().data_mut(|d| d.insert_temp(if fold { folded_key } else { natural_key }, width));
+        // A tab seen for the first time that does not fit folds, or scrolls, at the next frame: ask for it.
+        if width > inner.width() + 0.5 && !scroll {
+            ui.ctx().request_repaint();
         }
     });
 }

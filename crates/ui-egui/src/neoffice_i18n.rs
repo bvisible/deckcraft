@@ -610,6 +610,23 @@ mod tests {
         assert!(find.width() < 30.0, "a folded ribbon shows the icons only ({find:?})");
         assert!(last.max.x <= narrow - 18.0, "the last group fits a folded ribbon ({last:?} in {narrow})");
 
+        // Narrower still, the folded tab scrolls sideways, and its last group can be reached.
+        h.set_size(egui::vec2(700.0, 900.0));
+        h.run_steps(6);
+        let last = in_ribbon(&h, "Idées de création").expect("Design Ideas, still on the Home tab");
+        assert!(last.max.x > 700.0, "past the window's edge ({last:?})");
+        h.hover_at(egui::pos2(300.0, last.center().y));
+        h.run_steps(2);
+        h.event(egui::Event::MouseWheel {
+            unit: egui::MouseWheelUnit::Point,
+            delta: egui::vec2(-6000.0, 0.0),
+            phase: egui::TouchPhase::Move,
+            modifiers: egui::Modifiers::NONE,
+        });
+        h.run_steps(30);
+        let last = in_ribbon(&h, "Idées de création").expect("Design Ideas, still on the Home tab");
+        assert!(last.max.x <= 700.0 - 17.0, "scrolled into view ({last:?})");
+
         h.set_size(egui::vec2(2600.0, 900.0));
         h.run_steps(4);
         let find = in_ribbon(&h, "Rechercher").expect("Find on the Home tab");

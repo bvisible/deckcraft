@@ -201,7 +201,7 @@ their own `//// Neoffice — added file` header.
   tab unfolded (per tab and language) and, while that width does not fit, draws its small buttons with their icon only,
   as PowerPoint does on a narrow window; the label stays the button's accessible name and becomes its tooltip, unless
   the caller gives its own (`small_button_tip`). Only the ribbon's layer folds; the menus its buttons open keep their
-  words. Drop it when upstream collapses its groups.
+  words. A tab still too wide folded scrolls sideways (`ScrollArea::horizontal`) rather than cut off its last groups. Drop it when upstream collapses its groups.
 
 - **The browser build reads its address's flags by name** (`apps/deckcraft-web/src/web.rs`, `has_param`, with
   `URLSearchParams` as `host.rs` reads its own): upstream looked for `webgl`, `blank` and `show` anywhere in the address's
