@@ -683,9 +683,7 @@ impl SlideApp {
     }
 
     pub fn set_status(&mut self, msg: impl Into<String>) {
-        // //// Neoffice — a message that is one of the interface's strings shows in the person's language (l10n).
-        let msg = neoffice_i18n::l10n_owned(msg.into());
-        self.status = Some((msg, now_ms()));
+        self.status = Some((msg.into(), now_ms()));
     }
 
     /// A message that must be seen wherever the user is: a toast, which also shows over the start
@@ -701,7 +699,9 @@ impl SlideApp {
     pub fn fresh_status(&mut self) -> Option<String> {
         let (msg, at) = self.status.clone()?;
         if now_ms() - at < STATUS_LINGER_MS {
-            Some(msg)
+            // //// Neoffice — shown in the person's language when it is one of the interface's strings (l10n); kept in
+            // English in `status`, which `inspect` reports to scripts and to Nora.
+            Some(neoffice_i18n::l10n_owned(msg))
         } else {
             self.status = None;
             None
@@ -1966,6 +1966,10 @@ impl SlideApp {
             self.anim_preview = None;
             show::ui(self, ui);
             doc_window::show(self, &ctx);
+            // //// Neoffice — the Nora conversation goes on during a slide show (`nora_pane::keep_up`).
+            if self.ui.nora_pane {
+                nora_pane::keep_up(self, &ctx);
+            }
             self.perf.frame_ms = now_ms() - t0;
             return;
         }
@@ -1981,6 +1985,9 @@ impl SlideApp {
             if self.ui.nora_pane {
                 nora_pane::pane(self, ui);
             }
+        } else if self.ui.nora_pane {
+            // //// Neoffice — and its conversation goes on while the File tab covers the window (`nora_pane::keep_up`).
+            nora_pane::keep_up(self, &ctx);
         }
         let now = ui.input(|i| i.time);
         if self.tick_anim_preview(now) {

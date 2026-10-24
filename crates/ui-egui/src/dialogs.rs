@@ -1196,7 +1196,7 @@ fn body(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
             let names: Vec<String> = app.session.active().map(|s| s.doc.custom_shows.iter().map(|c| c.name.clone()).collect()).unwrap_or_default();
             let chosen = d.fields.entry("custom".into()).or_insert_with(|| sh.custom_show.clone().unwrap_or_default()).clone();
             ui.label(l10n("Slides")); // //// Neoffice — in the person's language (l10n)
-            let label = if chosen.is_empty() { "All slides".to_string() } else { chosen.clone() };
+            let label = if chosen.is_empty() { l10n("All slides").to_string() } else { chosen.clone() }; // //// Neoffice — in the person's language (l10n)
             egui::ComboBox::from_id_salt("setup_custom").selected_text(label).show_ui(ui, |ui| {
                 if ui.selectable_label(chosen.is_empty(), l10n("All slides")).clicked() {
                     // //// Neoffice — in the person's language (l10n)

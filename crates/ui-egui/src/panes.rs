@@ -36,7 +36,7 @@ pub fn show(app: &mut SlideApp, ui: &mut Ui) {
                 _ => "Pane",
             };
             ui.horizontal(|ui| {
-                ui.label(egui::RichText::new(title).font(theme::bold(16.0)));
+                ui.label(egui::RichText::new(l10n(title)).font(theme::bold(16.0))); // //// Neoffice — in the person's language (l10n)
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     let (r, resp) = ui.allocate_exact_size(vec2(20.0, 20.0), Sense::click());
                     if resp.hovered() {

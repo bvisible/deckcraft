@@ -147,7 +147,13 @@ their own `//// Neoffice — added file` header.
     presentation without a file goes through the app's Save As (the hosting page, a dialog, a download). Nora's actions
     wait, in their order, while the pointer drags something on the slide (moving, resizing, or a tool's drag: drawing a
     shape, a text box, ink or a freeform, selecting text, a guide), a slide in the thumbnails or the sorter, a whole
-    section in the sorter or an object's row in the Selection pane (the last two are upstream's since v0.8).
+    section in the sorter or an object's row in the Selection pane (the last two are upstream's since v0.8), and, when they
+    change the presentation or open something on the person's screen (Save, Print), while the File tab (or the start
+    screen) or a slide show covers the slides; her reads (the presentation, a slide's picture, its PDF or file for an
+    e-mail) go on. The conversation goes on meanwhile, its clock and its reads (`nora_pane::keep_up`, called by `lib.rs`
+    when the pane is on but not drawn), and the actions play in their order once the person is back, except one that
+    waited more than a minute (Nora has asked again by then) or for another presentation than the active one: Nora is
+    told it was not done.
   - **A failed action leaves the presentation as it was:** its document, selection and undo history (the redo steps
     included) go back to a snapshot taken before it. **Undo** (the pane's button) takes back Nora's last change whole,
     counting the undo steps it left even when the history is full, and refuses when the presentation changed after it
@@ -180,8 +186,8 @@ their own `//// Neoffice — added file` header.
   labels, tooltips, menus, check boxes, hints), and, from the second pass the same day, of the dialogs (`dialogs.rs`:
   titles, `field`, `check`, `text_row`, buttons, save prompts), the panes (`panes.rs`, `selpane.rs`, `fillui.rs`), the
   slide show (`show.rs`), the canvas, thumbnail and sorter menus (`canvas.rs`, `menus.rs`, `thumbs.rs`, `sorter.rs`),
-  the command palette (`menus.rs::palette_items`), `opening.rs`, `doc_window.rs`, the toasts and status messages
-  (`lib.rs::set_status`, `notify`, through `l10n_owned`) and the Print page (its PDF sentence, the range example, the
+  the command palette (`menus.rs::palette_items`, which still finds a command by its English name and its id), `opening.rs`, `doc_window.rs`, the toasts and status messages
+  (`lib.rs::fresh_status` when shown, `notify`, through `l10n_owned`; `status` keeps the English that `inspect` reports) and the Print page (its PDF sentence, the range example, the
   paper names). Ids stay English (`app.ui.tab`, QAT entries, `Page::label` as keys).
   The language: `DECKCRAFT_LANGUAGE`, then the one the hosting page names (`?lang=`, else `?locale=`, which the Drive
   of the Suite sets to the person's language, read by `apps/deckcraft-web/src/web.rs`), then the system's or the

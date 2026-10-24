@@ -124,13 +124,36 @@ pub struct NoraState {
     panel: NoraPanel,
     /// The changes of Nora's that Undo can take back, the newest last: one per change the conversation counts.
     changes: Vec<Change>,
-    /// Nora's actions that wait for the pointer to let go of the presentation (see [`pointer_busy`]).
-    waiting: Vec<DocumentCall>,
+    /// Nora's actions that wait for the pointer to let go of the presentation, or for the slides (see [`holds`]).
+    waiting: Vec<Waiting>,
     /// The language of the pane's words: the person's (see [`Lang::system`]).
     pub lang: Lang,
     /// The file each presentation is, by its uid, as the page that hosts the editor named it ([`name_file`]).
     files: Vec<(u64, String)>,
 }
+
+/// One of Nora's actions that waits ([`holds`]): since when, and for which presentation.
+struct Waiting {
+    call: DocumentCall,
+    since_ms: f64,
+    uid: Option<u64>,
+}
+
+impl Waiting {
+    fn new(app: &SlideApp, call: DocumentCall) -> Self {
+        Waiting { call, since_ms: crate::now_ms(), uid: app.session.active().map(|d| d.uid) }
+    }
+}
+
+/// How long an action may wait for the person to come back to the slides before it is not played: craft-nora's own
+/// limit for a page that ran nothing ([`SessionConfig::frozen_ms`]). Nora asks again meanwhile, so an older one would
+/// be played late, and twice.
+const MAX_WAIT_MS: f64 = 60_000.0;
+
+/// Why a waiting action was not played, for Nora.
+const WAITED_TOO_LONG: &str =
+    "not done: the File tab or a slide show covered the slides for more than a minute after this was asked; ask again if it is still wanted";
+const OTHER_PRESENTATION: &str = "not done: another presentation became the active one while this waited; ask again if it is still wanted";
 
 /// One change Nora made: in which presentation, how many undo steps it took, and the presentation as she left it.
 struct Change {
@@ -189,6 +212,16 @@ pub fn pane(app: &mut SlideApp, ui: &mut Ui) {
             }
             show(app, ui);
         });
+}
+
+/// The conversation's frame while the pane is on but not drawn: the File tab (or the start screen) or a slide show
+/// covers the window. Its clock goes on, Nora's answers are read and her calls made, so a turn is not taken for one lost
+/// to a tab in the background when the person comes back; her actions in the presentation wait for the slides to be on
+/// screen again ([`holds`]).
+pub fn keep_up(app: &mut SlideApp, ctx: &egui::Context) {
+    let mut outputs = drive(ctx, &mut app.nora.session);
+    outputs.extend(incoming(app));
+    perform(app, outputs, ctx);
 }
 
 /// The title row of DeckCraft's task panes: the pane's name, and a close button. True when the button was clicked.
@@ -279,12 +312,39 @@ fn pointer_busy(app: &SlideApp) -> bool {
         || app.session.active().is_some_and(|d| d.interaction.is_some())
 }
 
-/// The actions that waited for the pointer, once it let go.
+/// Whether one of Nora's actions waits: for the pointer ([`pointer_busy`]), or, when it would change the presentation or
+/// open something on the person's screen (Save, Print), for the slides, while the File tab (or the start screen) or a
+/// slide show covers them: the person does not see what changes, and a slide show moves through slides that would
+/// change under it. A read (the presentation, a slide's picture, its PDF or file for an e-mail) goes on meanwhile.
+fn holds(app: &SlideApp, kind: &DocActionKind) -> bool {
+    let away = app.backstage.is_some() || app.show.is_some();
+    let reads = matches!(kind, DocActionKind::Observe | DocActionKind::RenderPage { .. } | DocActionKind::ExportPdf | DocActionKind::ExportFile);
+    pointer_busy(app) || (away && !reads)
+}
+
+/// The actions that waited, once none of them has to: in their order, except the ones that waited more than
+/// [`MAX_WAIT_MS`] or for a presentation that is no longer the active one, which Nora is told were not played.
 fn released(app: &mut SlideApp) -> Vec<Output> {
-    if pointer_busy(app) {
+    if app.nora.waiting.iter().any(|w| holds(app, &w.call.kind)) {
         return Vec::new();
     }
-    std::mem::take(&mut app.nora.waiting).into_iter().map(Output::Document).collect()
+    let now = crate::now_ms();
+    let active = app.session.active().map(|d| d.uid);
+    let mut outputs = Vec::new();
+    for w in std::mem::take(&mut app.nora.waiting) {
+        let refused = if now - w.since_ms > MAX_WAIT_MS {
+            Some(WAITED_TOO_LONG)
+        } else if w.uid != active {
+            Some(OTHER_PRESENTATION)
+        } else {
+            None
+        };
+        match refused {
+            Some(why) => outputs.extend(app.nora.session.handle(Input::DocumentResult { id: w.call.id, result: Err(why.into()) })),
+            None => outputs.push(Output::Document(w.call)),
+        }
+    }
+    outputs
 }
 
 /// Does what the conversation asks: a call goes to the host, a document action is played (or waits for the pointer), a
@@ -301,7 +361,10 @@ fn perform(app: &mut SlideApp, outputs: Vec<Output>, ctx: &egui::Context) {
             match output {
                 Output::Http(request) => next.extend(send(app, request)),
                 // Behind the ones that already wait, too, so that they keep their order.
-                Output::Document(call) if pointer_busy(app) || !app.nora.waiting.is_empty() => app.nora.waiting.push(call),
+                Output::Document(call) if holds(app, &call.kind) || !app.nora.waiting.is_empty() => {
+                    let waiting = Waiting::new(app, call);
+                    app.nora.waiting.push(waiting);
+                }
                 Output::Document(call) => {
                     let result = run_document(app, &call.kind);
                     next.extend(app.nora.session.handle(Input::DocumentResult { id: call.id, result }));
@@ -1430,8 +1493,10 @@ mod tests {
         let mut h = harness(a);
         let polls = start(&mut h, &outbox, &inbox, "Write a greeting");
         let actions = polls.iter().find(|r| r.path.ends_with("get_browser_actions")).expect("the actions are read");
+        let messages = polls.iter().find(|r| r.path.ends_with("get_messages")).expect("the replies are read");
+        answer(&inbox, messages, json!({"messages": []}));
         answer(&inbox, actions, json!({"actions": [{"action": "doc_type_text", "text": "Bonjour tout le monde", "callback_id": "c1"}]}));
-        // The page comes back nine minutes later, the answer still waiting in it.
+        // The page comes back nine minutes later, the answers still waiting in it.
         let now = h.ctx.input(|i| i.time);
         h.input_mut().time = Some(now + 540.0);
         h.step();
@@ -1445,17 +1510,21 @@ mod tests {
         let observation = told.iter().find(|r| r.path.ends_with("receive_observation") && r.body["callback_id"] == "c1").expect("Nora is told");
         assert_eq!(observation.body["observation"]["ok"], false, "{}", observation.body);
         // Nothing more comes from Nora: the turn ends, and the pane offers to resume it.
+        let nothing = |inbox: &NoraInbox, reads: Vec<HttpRequest>| {
+            for read in reads {
+                if read.path.ends_with("get_messages") {
+                    answer(inbox, &read, json!({"messages": []}));
+                } else if read.path.ends_with("get_browser_actions") {
+                    answer(inbox, &read, json!({"actions": []}));
+                }
+            }
+        };
+        nothing(&inbox, told);
         let mut rounds = 0;
         while h.query_by_label("Resume").is_none() {
             rounds += 1;
             assert!(rounds < 200, "the pane offers Resume once the turn is over");
-            for read in take(&outbox) {
-                if read.path.ends_with("get_messages") {
-                    answer(&inbox, &read, json!({"messages": []}));
-                } else if read.path.ends_with("get_browser_actions") {
-                    answer(&inbox, &read, json!({"actions": []}));
-                }
-            }
+            nothing(&inbox, take(&outbox));
             h.run_steps(2);
         }
         assert!(h.query_by_label("This tab was in the background: Nora could not act in the presentation.").is_some());
@@ -1465,6 +1534,42 @@ mod tests {
         h.run_steps(4);
         let sent = take(&outbox);
         assert!(sent.iter().any(|r| r.body["message"] == "Write a greeting"), "the same request, sent again: {sent:?}");
+    }
+
+    /// While the File tab covers the window the conversation goes on (it is read on, its clock runs), and Nora's actions
+    /// wait for the slides: played, in their order, once the person is back.
+    #[test]
+    fn while_the_file_tab_is_open_the_conversation_goes_on_and_actions_wait_for_the_slides() {
+        let (services, outbox, inbox) = connected();
+        let mut a = app(services);
+        a.run("ui.nora", json!({"on": true})).unwrap();
+        let mut h = harness(a);
+        let polls = start(&mut h, &outbox, &inbox, "Write a greeting");
+        h.state_mut().run("app.backstage", json!({"page": "info"})).unwrap();
+        h.run_steps(2);
+        assert!(h.state().backstage.is_some(), "the File tab is open");
+        let actions = polls.iter().find(|r| r.path.ends_with("get_browser_actions")).expect("the actions are read");
+        let messages = polls.iter().find(|r| r.path.ends_with("get_messages")).expect("the replies are read");
+        answer(&inbox, messages, json!({"messages": []}));
+        answer(&inbox, actions, json!({"actions": [{"action": "doc_type_text", "text": "Bonjour tout le monde", "callback_id": "c1"}]}));
+        h.run_steps(4);
+        let typed = |h: &Harness| {
+            h.state().session.active().unwrap().doc.slides[0].shapes.iter().any(|s| s.text.as_ref().is_some_and(|t| t.text().contains("Bonjour")))
+        };
+        assert!(!typed(&h), "the action waits for the slides");
+        let mut read_again = false;
+        for _ in 0..40 {
+            h.run_steps(2);
+            if take(&outbox).iter().any(|r| r.path.ends_with("get_messages")) {
+                read_again = true;
+                break;
+            }
+        }
+        assert!(read_again, "the conversation is read on while the File tab is open");
+        assert!(!typed(&h), "still waiting");
+        h.state_mut().close_backstage();
+        h.run_steps(4);
+        assert!(typed(&h), "played once the slides are back");
     }
 
     /// A command the policy refuses never reaches the presentation nor the interface, and Nora is told why.
@@ -1903,7 +2008,8 @@ mod tests {
             .find_map(|o| if let Output::Http(r) = o { r.path.ends_with("get_browser_actions").then(|| r.clone()) } else { None })
             .expect("the actions are read");
         // An older action waited for the pointer; a newer one arrives in the frame the pointer lets go.
-        a.nora.waiting.push(DocumentCall { id: 900, kind: execute("slide.new", json!({"title": "First"})) });
+        let first = Waiting::new(&a, DocumentCall { id: 900, kind: execute("slide.new", json!({"title": "First"})) });
+        a.nora.waiting.push(first);
         answer(&inbox, &actions, json!({"actions": [{"action": "doc_execute", "command": "slide.new", "params": {"title": "Second"}}]}));
         let outputs = incoming(&mut a);
         perform(&mut a, outputs, &egui::Context::default());
@@ -2112,6 +2218,35 @@ mod tests {
         perform(&mut a, outputs, &ctx);
         assert_eq!(slides(&a), 3, "played once the pointer let go");
         assert!(a.nora.waiting.is_empty());
+    }
+
+    /// An action that waited more than a minute for the person to come back to the slides, or for a presentation that is
+    /// no longer the active one, is not played; a read goes on while the File tab is open.
+    #[test]
+    fn a_stale_waiting_action_is_not_played_and_a_read_does_not_wait_for_the_slides() {
+        let mut a = deck();
+        let ctx = egui::Context::default();
+        let uid = a.session.active().map(|d| d.uid);
+        let old = Waiting { call: DocumentCall { id: 1, kind: execute("slide.new", json!({})) }, since_ms: crate::now_ms() - 120_000.0, uid };
+        let elsewhere =
+            Waiting { call: DocumentCall { id: 2, kind: execute("slide.new", json!({})) }, since_ms: crate::now_ms(), uid: Some(u64::MAX) };
+        a.nora.waiting.extend([old, elsewhere]);
+        let outputs = released(&mut a);
+        assert!(outputs.iter().all(|o| !matches!(o, Output::Document(_))), "neither is played");
+        perform(&mut a, outputs, &ctx);
+        assert_eq!(slides(&a), 2);
+        assert!(a.nora.waiting.is_empty());
+
+        a.run("app.backstage", json!({"page": "info"})).unwrap();
+        assert!(a.backstage.is_some());
+        perform(&mut a, vec![Output::Document(DocumentCall { id: 3, kind: DocActionKind::Observe })], &ctx);
+        assert!(a.nora.waiting.is_empty(), "a read goes on under the File tab");
+        perform(&mut a, vec![Output::Document(DocumentCall { id: 4, kind: execute("slide.new", json!({})) })], &ctx);
+        assert_eq!((a.nora.waiting.len(), slides(&a)), (1, 2), "a change waits for the slides");
+        a.close_backstage();
+        let outputs = released(&mut a);
+        perform(&mut a, outputs, &ctx);
+        assert_eq!((a.nora.waiting.len(), slides(&a)), (0, 3), "and plays once they are back");
     }
 
     /// The sentences of the pane are words of the person's language, not the core's English.

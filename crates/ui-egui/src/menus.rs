@@ -96,9 +96,15 @@ fn palette_items(session: &deckcraft_engine::Session, q: &str) -> Vec<(String, S
                 .filter(|c| !deckcraft_engine::cmd::needs_arguments(c.3))
                 .map(|c| (c.0.to_string(), crate::brand::label(c.1).to_string(), c.2)),
         )
-        // //// Neoffice — the names in the person's language (l10n), and the search looks for what the person reads.
+        // //// Neoffice — the names in the person's language (l10n): the search finds a command by what the person reads,
+        // and still by its English name and its id.
+        .filter(|(id, label, _)| {
+            q.is_empty()
+                || label.to_lowercase().contains(q)
+                || crate::neoffice_i18n::l10n(label).to_lowercase().contains(q)
+                || id.to_lowercase().contains(q)
+        })
         .map(|(id, label, shortcut)| (id, crate::neoffice_i18n::l10n_owned(label), shortcut))
-        .filter(|(id, label, _)| q.is_empty() || label.to_lowercase().contains(q) || id.to_lowercase().contains(q))
         .collect();
     items.sort_by_key(|(_, l, _)| !l.to_lowercase().starts_with(q));
     items.truncate(60);

@@ -271,6 +271,10 @@ pub fn show(app: &mut SlideApp, ui: &mut Ui) {
         if !fold {
             let natural = ui.min_rect().width();
             ui.ctx().data_mut(|d| d.insert_temp(natural_key, natural));
+            // A tab seen for the first time that does not fit folds at the next frame: ask for it.
+            if natural > inner.width() + 0.5 {
+                ui.ctx().request_repaint();
+            }
         }
     });
 }
