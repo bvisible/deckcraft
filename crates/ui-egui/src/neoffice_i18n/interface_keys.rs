@@ -1408,4 +1408,5 @@ pub(super) const KEYS: &[&str] = &[
     "◀ Previous",
     "✏ on",
     "◉ on",
+    "Search for a word",
 ];

@@ -1495,4 +1495,5 @@ pub(super) const TABLE: &[(&str, &str)] = &[
     ("◀ Previous", "◀ Zurück"),
     ("✏ on", "✏ ein"),
     ("◉ on", "◉ ein"),
+    ("Search for a word", "Wort suchen"),
 ];

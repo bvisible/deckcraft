@@ -1576,7 +1576,7 @@ mod tests {
 fn thesaurus(app: &mut SlideApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     let mut q = app.thesaurus_query.clone();
-    let edit = ui.add(egui::TextEdit::singleline(&mut q).hint_text("Search for a word").desired_width(f32::INFINITY));
+    let edit = ui.add(egui::TextEdit::singleline(&mut q).hint_text(l10n("Search for a word")).desired_width(f32::INFINITY)); // //// Neoffice — in the person's language (l10n)
     if edit.changed() {
         app.thesaurus_query = q.clone();
     }
