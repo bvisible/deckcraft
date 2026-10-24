@@ -89,8 +89,11 @@ arboard = { version = "3.6", default-features = false }
 # for minutes), and a late answer shows as it comes (bcc831f); the panel builds on egui 0.36 or 0.37 (0.36 here).
 # //// Neoffice — 1f01bcc (24.10.2026): a turn lost to a tab in the background offers to resume it (Resume), and
 # never plays an action of a turn given up on, reads links in linear time; the pane ticks before it hands the answers over.
-craft-nora = { git = "https://github.com/bvisible/craft-libs", rev = "1f01bcc9d5f868014499b4e6b4e617bd9e228c06" }
-craft-nora-ui = { git = "https://github.com/bvisible/craft-libs", rev = "1f01bcc9d5f868014499b4e6b4e617bd9e228c06" }
+# //// Neoffice — 620d408 (24.10.2026): an action addressed to another conversation or document (a second editor open) is
+# refused, a reply that says done after its write was refused is corrected (`correction_words`), a card after the final
+# reply shows, a freeze is judged without the server's hours.
+craft-nora = { git = "https://github.com/bvisible/craft-libs", rev = "620d40879c708193063fd53a7f86415c44339ce0" }
+craft-nora-ui = { git = "https://github.com/bvisible/craft-libs", rev = "620d40879c708193063fd53a7f86415c44339ce0" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

@@ -46,7 +46,7 @@ use craft_nora::{
     AppKind, CommandCall, CommandPolicy, DocActionKind, DocumentCall, DocumentInfo, HttpRequest, HttpResponse, Input, NoraError, NoraSession, Output,
     PageContext, Selection, SessionConfig,
 };
-use craft_nora_ui::{NoraLabels, NoraPanel, NoraStyle, PanelAction, ResumeWords, drive};
+use craft_nora_ui::{CorrectionWords, NoraLabels, NoraPanel, NoraStyle, PanelAction, ResumeWords, drive};
 use deckcraft_engine::{DocState, History, Target};
 use deckcraft_model::{PhType, Presentation, Shape, ShapeId, ShapeKind, TextBody};
 use egui::{CornerRadius, Sense, Ui, vec2};
@@ -253,6 +253,7 @@ pub fn show(app: &mut SlideApp, ui: &mut Ui) {
     let lang = app.nora.lang;
     app.nora.panel.labels = labels(lang);
     app.nora.panel.resume_words = resume_words(lang);
+    app.nora.panel.correction_words = correction_words(lang);
     // The panel takes its words for a failure of the connection once, when it is made: given again each frame, as the
     // labels, so that they follow the pane's language.
     app.nora.panel = std::mem::take(&mut app.nora.panel).with_error_words(error_worder(lang));
@@ -1101,6 +1102,15 @@ fn resume_words(lang: Lang) -> ResumeWords {
     }
 }
 
+/// What the pane says of a reply of Nora's whose turn could not act in the presentation in time, in the pane's language:
+/// in place of a reply when nothing was done (it may say it was), under it when part was (craft-libs 620d408).
+fn correction_words(lang: Lang) -> CorrectionWords {
+    CorrectionWords {
+        nothing_done: tr(lang, "Nothing was done in the presentation: Nora could not act in it in time. Ask again if you still need it.").to_string(),
+        partly_done: tr(lang, "Not all of this was done: part of it could not run in the presentation in time.").to_string(),
+    }
+}
+
 /// The panel takes a plain function to describe an action, so there is one per language.
 fn describer(lang: Lang) -> fn(&DocActionKind) -> String {
     match lang {
@@ -1534,6 +1544,54 @@ mod tests {
         h.run_steps(4);
         let sent = take(&outbox);
         assert!(sent.iter().any(|r| r.body["message"] == "Write a greeting"), "the same request, sent again: {sent:?}");
+    }
+
+    /// With two editors open, each with its own conversation, the server addresses every action to the conversation and
+    /// the Drive file of its turn: one addressed to another document is refused here and never played; one addressed to
+    /// this presentation plays (craft-libs 620d408).
+    #[test]
+    fn an_action_addressed_to_another_document_is_never_played_here() {
+        let (services, outbox, inbox) = connected();
+        let mut a = app(services);
+        let uid = a.session.active().unwrap().uid;
+        name_file(&mut a, uid, Some("3fcaa7893c"));
+        a.run("ui.nora", json!({"on": true})).unwrap();
+        let mut h = harness(a);
+        let polls = start(&mut h, &outbox, &inbox, "Write a greeting");
+        let typed = |h: &Harness, word: &str| {
+            h.state().session.active().unwrap().doc.slides[0].shapes.iter().any(|s| s.text.as_ref().is_some_and(|t| t.text().contains(word)))
+        };
+        let messages = polls.iter().find(|r| r.path.ends_with("get_messages")).expect("the replies are read");
+        let actions = polls.iter().find(|r| r.path.ends_with("get_browser_actions")).expect("the actions are read");
+        answer(&inbox, messages, json!({"messages": []}));
+        let elsewhere = json!({"action": "doc_type_text", "text": "Ailleurs", "callback_id": "c1", "for_thread": "t1", "for_document": "9d0c2b11aa"});
+        answer(&inbox, actions, json!({"actions": [elsewhere]}));
+        h.run_steps(4);
+        assert!(!typed(&h, "Ailleurs"), "never played in this presentation");
+        let mut told = take(&outbox);
+        let observation = told.iter().find(|r| r.path.ends_with("receive_observation") && r.body["callback_id"] == "c1").expect("Nora is told");
+        assert_eq!(observation.body["observation"]["ok"], false, "{}", observation.body);
+        // The next read brings an action addressed to this pane: it plays.
+        let mut rounds = 0;
+        let next = loop {
+            if let Some(read) = told.iter().find(|r| r.path.ends_with("get_browser_actions")) {
+                break read.clone();
+            }
+            for read in told.iter().filter(|r| r.path.ends_with("get_messages")) {
+                answer(&inbox, read, json!({"messages": []}));
+            }
+            rounds += 1;
+            assert!(rounds < 40, "the actions are read again");
+            h.run_steps(2);
+            told = take(&outbox);
+        };
+        for read in told.iter().filter(|r| r.path.ends_with("get_messages")) {
+            answer(&inbox, read, json!({"messages": []}));
+        }
+        let here = json!({"action": "doc_type_text", "text": "Ici", "callback_id": "c2", "for_thread": "t1", "for_document": "3fcaa7893c"});
+        answer(&inbox, &next, json!({"actions": [here]}));
+        h.run_steps(4);
+        assert!(typed(&h, "Ici"), "played in the presentation it was addressed to");
     }
 
     /// While the File tab covers the window the conversation goes on (it is read on, its clock runs), and Nora's actions

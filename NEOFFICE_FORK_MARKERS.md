@@ -165,8 +165,12 @@ their own `//// Neoffice — added file` header.
     that the pane ticks its session first (`drive`), then hands it the answers the host delivered (craft-libs ed1cb40,
     1f01bcc, as GridCraft does). Once the turn is over the pane says the tab was in the background and offers Resume
     (`resume_words`), which sends the request again on the click only. DeckCraft carries the answers to Nora's cards, so
-    `cards_unanswered` stays unset.
-  - **The words** (the pane, its Preferences switch, Undo's two refusals, the resume sentence and button) are in French, German, Italian or Spanish when the
+    `cards_unanswered` stays unset. From craft-libs 620d408 the server addresses each action to the conversation and the Drive file of its turn,
+    and the pane refuses one addressed to another (a second editor open, with its own conversation); a reply that says
+    done after its change was refused is replaced or followed by the pane's own sentence (`correction_words`), in the
+    person's language.
+  - **The words** (the pane, its Preferences switch, Undo's two refusals, the resume sentence and button, the two
+    correction sentences) are in French, German, Italian or Spanish when the
     hosting page names one, or the system or the browser prefers one of them (`DECKCRAFT_LANGUAGE` first, then the page's
     `?lang=` or `?locale=`, then `sys-locale`), English otherwise: the language of the interface (see below). DeckCraft has
     no catalog, so they live in Neoffice's own table, `neoffice_i18n.rs`; French reuses the wording of WordCraft's Nora

@@ -217,6 +217,8 @@ pub const ENGLISH: &[&str] = &[
     "Nora's answer could not be read.",
     "This tab was in the background: Nora could not act in the presentation.",
     "Resume",
+    "Nothing was done in the presentation: Nora could not act in it in time. Ask again if you still need it.",
+    "Not all of this was done: part of it could not run in the presentation in time.",
 ];
 
 /// French (Swiss customers, "vous"), WordCraft's wording where the pane says the same.
@@ -265,6 +267,14 @@ const FRENCH: &[(&str, &str)] = &[
         "L'onglet était en arrière-plan : Nora n'a pas pu agir dans la présentation.",
     ),
     ("Resume", "Reprendre"),
+    (
+        "Nothing was done in the presentation: Nora could not act in it in time. Ask again if you still need it.",
+        "Rien n'a été fait dans la présentation : Nora n'a pas pu y agir à temps. Redemandez-le si vous en avez encore besoin.",
+    ),
+    (
+        "Not all of this was done: part of it could not run in the presentation in time.",
+        "Tout n'a pas été fait : une partie n'a pas pu s'exécuter dans la présentation à temps.",
+    ),
 ];
 
 /// German (Swiss Standard German, "Sie"); the Undo button says what WordCraft's catalog says.
@@ -316,6 +326,14 @@ const GERMAN: &[(&str, &str)] = &[
         "Dieser Tab war im Hintergrund: Nora konnte in der Präsentation nichts tun.",
     ),
     ("Resume", "Fortsetzen"),
+    (
+        "Nothing was done in the presentation: Nora could not act in it in time. Ask again if you still need it.",
+        "In der Präsentation wurde nichts getan: Nora konnte rechtzeitig nichts darin unternehmen. Fragen Sie erneut nach, falls Sie es noch brauchen.",
+    ),
+    (
+        "Not all of this was done: part of it could not run in the presentation in time.",
+        "Nicht alles davon wurde erledigt: Ein Teil konnte in der Präsentation nicht rechtzeitig ausgeführt werden.",
+    ),
 ];
 
 /// Italian (formal register; the infinitive for actions and buttons).
@@ -364,6 +382,14 @@ const ITALIAN: &[(&str, &str)] = &[
         "Questa scheda era in secondo piano: Nora non ha potuto agire nella presentazione.",
     ),
     ("Resume", "Riprendere"),
+    (
+        "Nothing was done in the presentation: Nora could not act in it in time. Ask again if you still need it.",
+        "Nella presentazione non è stato fatto nulla: Nora non ha potuto agire in tempo. Richieda se ne ha ancora bisogno.",
+    ),
+    (
+        "Not all of this was done: part of it could not run in the presentation in time.",
+        "Non tutto è stato fatto: una parte non ha potuto essere eseguita nella presentazione in tempo.",
+    ),
 ];
 
 /// Spanish (Spain, "usted"), made by Haiku from the English.
@@ -412,6 +438,14 @@ const SPANISH: &[(&str, &str)] = &[
         "Esta pestaña estaba en segundo plano: Nora no ha podido actuar en la presentación.",
     ),
     ("Resume", "Reanudar"),
+    (
+        "Nothing was done in the presentation: Nora could not act in it in time. Ask again if you still need it.",
+        "No se hizo nada en la presentación: Nora no ha podido actuar a tiempo. Vuelva a pedirlo si todavía lo necesita.",
+    ),
+    (
+        "Not all of this was done: part of it could not run in the presentation in time.",
+        "No todo se ha hecho: una parte no ha podido ejecutarse en la presentación a tiempo.",
+    ),
 ];
 
 #[cfg(test)]
