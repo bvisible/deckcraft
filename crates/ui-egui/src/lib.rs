@@ -1437,7 +1437,6 @@ impl SlideApp {
             && let Some(d) = self.session.active_mut()
         {
             // //// Neoffice — a page that frames the editor takes the presentation (and picks its name and format).
-            log::info!("neoffice-debug save_as_dialog host_save"); // //// Neoffice — TEMPORARY diagnostics of the Quick Access Toolbar's Save (removed in the next commit)
             if let Err(e) = host_save(d) {
                 self.set_status(e);
             }
@@ -1466,11 +1465,6 @@ impl SlideApp {
     }
 
     pub fn save(&mut self) {
-        log::info!(
-            "neoffice-debug save path={:?} dirty={:?}",
-            self.session.active().map(|d| d.path.clone()),
-            self.session.active().map(|d| d.is_dirty())
-        ); // //// Neoffice — TEMPORARY diagnostics of the Quick Access Toolbar's Save (removed in the next commit)
         if self.session.active().and_then(|d| d.path.clone()).is_some() {
             match self.session.execute("file.save", &json!({})) {
                 Ok(_) => self.set_status("Saved"),
