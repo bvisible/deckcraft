@@ -128,7 +128,24 @@ pub fn show(app: &mut SlideApp, ui: &mut Ui) {
             id => crate::ribbon::enabled(app, id),
         };
         let r = crate::widgets::icon_toggle(ui, q.icon(), &tip(q), en, on);
+        // //// Neoffice — TEMPORARY diagnostics of the Quick Access Toolbar's Save (removed in the next commit)
+        if r.contains_pointer() && ui.input(|i| i.pointer.any_pressed() || i.pointer.any_released()) {
+            log::info!(
+                "neoffice-debug qat {} pressed={} released={} clicked={} down_on={} hovered={} en={en} any_popup={} focused={:?} dragged={:?} time={:.3}",
+                q.id,
+                ui.input(|i| i.pointer.any_pressed()),
+                ui.input(|i| i.pointer.any_released()),
+                r.clicked(),
+                r.is_pointer_button_down_on(),
+                r.hovered(),
+                egui::Popup::is_any_open(ui.ctx()),
+                ui.ctx().memory(|m| m.focused()),
+                ui.ctx().dragged_id(),
+                ui.input(|i| i.time),
+            );
+        }
         if r.clicked() {
+            log::info!("neoffice-debug qat run {}", q.id); // //// Neoffice — TEMPORARY diagnostics of the Quick Access Toolbar's Save (removed in the next commit)
             run(app, q);
         }
         r.context_menu(|ui| {
