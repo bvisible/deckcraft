@@ -46,7 +46,7 @@ use craft_nora::{
     AppKind, CommandCall, CommandPolicy, DocActionKind, DocumentCall, DocumentInfo, HttpRequest, HttpResponse, Input, NoraError, NoraSession, Output,
     PageContext, Selection, SessionConfig,
 };
-use craft_nora_ui::{CorrectionWords, NoraLabels, NoraPanel, NoraStyle, PanelAction, ResumeWords, drive};
+use craft_nora_ui::{CorrectionWords, LauncherWords, NoraLabels, NoraPanel, NoraStyle, PaneMemory, PanelAction, ResumeWords, drive};
 use deckcraft_engine::{DocState, History, Target};
 use deckcraft_model::{PhType, Presentation, Shape, ShapeId, ShapeKind, TextBody};
 use egui::{CornerRadius, Sense, Ui, vec2};
@@ -196,6 +196,31 @@ pub fn named_file(app: &SlideApp, uid: u64) -> Option<&str> {
     app.nora.files.iter().find(|(named, _)| *named == uid).map(|(_, id)| id.as_str())
 }
 
+/// The name the pane's state is remembered under in the browser (craft-nora-ui `PaneMemory`).
+const MEMORY: &str = "deckcraft";
+
+/// Opens the pane where the page offers Nora, unless the person closed it on an earlier visit (remembered in the browser,
+/// open when nothing is).
+pub fn open_as_remembered(app: &mut SlideApp) -> Result<Value, String> {
+    app.run("ui.nora", json!({"on": PaneMemory::new(MEMORY).open()}))
+}
+
+/// While the pane is closed where Nora is offered: a rail at the right edge of the window, beside the slides, with Nora's
+/// sphere (craft-nora-ui `launcher`), which opens the pane again on the same conversation.
+pub fn rail(app: &mut SlideApp, ui: &mut Ui) {
+    if app.services.nora_http.is_none() {
+        return;
+    }
+    let t = Tokens::get(ui.ctx());
+    let words = LauncherWords { open: tr(app.nora.lang, "Open Nora").to_string() };
+    let frame = egui::Frame::NONE.fill(t.card).inner_margin(egui::Margin::symmetric(0, 10));
+    let response = craft_nora_ui::launcher::rail(ui, frame, &words);
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, &words.open));
+    if response.clicked() && app.run("ui.nora", json!({"on": true})).is_ok() {
+        PaneMemory::new(MEMORY).remember(true);
+    }
+}
+
 /// The pane at the right of the window, with the title row of DeckCraft's task panes ("Nora" and a close button), then
 /// the conversation.
 pub fn pane(app: &mut SlideApp, ui: &mut Ui) {
@@ -208,6 +233,7 @@ pub fn pane(app: &mut SlideApp, ui: &mut Ui) {
         .show(ui, |ui| {
             if header(ui, &t) {
                 let _ = app.run("ui.nora", json!({"on": false}));
+                PaneMemory::new(MEMORY).remember(false);
                 return;
             }
             show(app, ui);
@@ -1358,6 +1384,35 @@ mod tests {
         // Listed with the other UI commands (the command palette, agents' `engine.commands`).
         let listed = crate::control::all_commands(&a);
         assert!(listed.as_array().unwrap().iter().any(|c| c["id"] == "ui.nora" && c["label"] == "Nora"));
+    }
+
+    /// Closed, the pane leaves a rail with Nora's sphere at the right edge where Nora is offered; its click opens the pane
+    /// again on the same conversation. Where Nora isn't offered, no rail. Outside a browser nothing is remembered: the
+    /// pane opens as before.
+    #[test]
+    fn a_closed_pane_leaves_a_rail_that_opens_it_again() {
+        let (services, outbox, inbox) = connected();
+        let mut a = app(services);
+        assert_eq!(open_as_remembered(&mut a).unwrap(), json!({"nora": true}));
+        let mut h = harness(a);
+        start(&mut h, &outbox, &inbox, "Bonjour");
+        assert_eq!(h.state().nora.session.thread_id(), Some("t1"));
+        assert!(h.query_by_label("Open Nora").is_none(), "no rail while the pane is open");
+        h.state_mut().run("ui.nora", json!({"on": false})).unwrap();
+        h.run_steps(4);
+        let rail = h.get_by_label("Open Nora").rect();
+        assert!(rail.min.x >= 1440.0 - craft_nora_ui::launcher::RAIL_WIDTH, "at the right edge: {rail:?}");
+        h.get_by_label("Open Nora").click();
+        h.run_steps(4);
+        assert!(h.state().ui.nora_pane, "open again");
+        assert_eq!(h.state().nora.session.thread_id(), Some("t1"), "on the same conversation");
+        assert!(h.query_by_label("Open Nora").is_none());
+        // Where Nora isn't offered: no rail.
+        let h = harness(app(Services::default()));
+        assert!(h.query_by_label("Open Nora").is_none());
+        // In the pane's languages.
+        assert_eq!(tr(Lang::Fr, "Open Nora"), "Ouvrir Nora");
+        assert_eq!(tr(Lang::De, "Open Nora"), "Nora öffnen");
     }
 
     /// Preferences › Assistant is the `ui.nora` setting, in the person's language.

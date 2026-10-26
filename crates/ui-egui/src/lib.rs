@@ -1984,6 +1984,9 @@ impl SlideApp {
             // (Preferences › Assistant, or the hosting page) turns it on.
             if self.ui.nora_pane {
                 nora_pane::pane(self, ui);
+            } else {
+                // //// Neoffice — closed by its cross, a rail with Nora's sphere opens it again (`nora_pane::rail`).
+                nora_pane::rail(self, ui);
             }
         } else if self.ui.nora_pane {
             // //// Neoffice — and its conversation goes on while the File tab covers the window (`nora_pane::keep_up`).

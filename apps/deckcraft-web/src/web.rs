@@ -85,9 +85,10 @@ pub fn start() {
                         }
                         bridge.ready(&app);
                     }
-                    // //// Neoffice — see `nora` above: the pane opens by itself when the page offers Nora.
+                    // //// Neoffice — see `nora` above: the pane opens by itself when the page offers Nora, unless the person
+                    // closed it on an earlier visit (remembered in the browser, nora_pane::open_as_remembered).
                     if nora.is_some()
-                        && let Err(e) = app.run("ui.nora", serde_json::json!({"on": true}))
+                        && let Err(e) = deckcraft_ui_egui::nora_pane::open_as_remembered(&mut app)
                     {
                         log::error!("the Nora pane could not be opened: {e}");
                     }

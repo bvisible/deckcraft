@@ -217,6 +217,7 @@ pub const ENGLISH: &[&str] = &[
     "Nora's answer could not be read.",
     "This tab was in the background: Nora could not act in the presentation.",
     "Resume",
+    "Open Nora",
     "Nothing was done in the presentation: Nora could not act in it in time. Ask again if you still need it.",
     "Not all of this was done: part of it could not run in the presentation in time.",
 ];
@@ -267,6 +268,7 @@ const FRENCH: &[(&str, &str)] = &[
         "L'onglet était en arrière-plan : Nora n'a pas pu agir dans la présentation.",
     ),
     ("Resume", "Reprendre"),
+    ("Open Nora", "Ouvrir Nora"),
     (
         "Nothing was done in the presentation: Nora could not act in it in time. Ask again if you still need it.",
         "Rien n'a été fait dans la présentation : Nora n'a pas pu y agir à temps. Redemandez-le si vous en avez encore besoin.",
@@ -326,6 +328,7 @@ const GERMAN: &[(&str, &str)] = &[
         "Dieser Tab war im Hintergrund: Nora konnte in der Präsentation nichts tun.",
     ),
     ("Resume", "Fortsetzen"),
+    ("Open Nora", "Nora öffnen"),
     (
         "Nothing was done in the presentation: Nora could not act in it in time. Ask again if you still need it.",
         "In der Präsentation wurde nichts getan: Nora konnte rechtzeitig nichts darin unternehmen. Fragen Sie erneut nach, falls Sie es noch brauchen.",
@@ -382,6 +385,7 @@ const ITALIAN: &[(&str, &str)] = &[
         "Questa scheda era in secondo piano: Nora non ha potuto agire nella presentazione.",
     ),
     ("Resume", "Riprendere"),
+    ("Open Nora", "Apri Nora"),
     (
         "Nothing was done in the presentation: Nora could not act in it in time. Ask again if you still need it.",
         "Nella presentazione non è stato fatto nulla: Nora non ha potuto agire in tempo. Richieda se ne ha ancora bisogno.",
@@ -438,6 +442,7 @@ const SPANISH: &[(&str, &str)] = &[
         "Esta pestaña estaba en segundo plano: Nora no ha podido actuar en la presentación.",
     ),
     ("Resume", "Reanudar"),
+    ("Open Nora", "Abrir Nora"),
     (
         "Nothing was done in the presentation: Nora could not act in it in time. Ask again if you still need it.",
         "No se hizo nada en la presentación: Nora no ha podido actuar a tiempo. Vuelva a pedirlo si todavía lo necesita.",
