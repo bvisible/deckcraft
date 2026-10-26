@@ -1401,7 +1401,8 @@ mod tests {
         h.state_mut().run("ui.nora", json!({"on": false})).unwrap();
         h.run_steps(4);
         let rail = h.get_by_label("Open Nora").rect();
-        assert!(rail.min.x >= 1440.0 - craft_nora_ui::launcher::RAIL_WIDTH, "at the right edge: {rail:?}");
+        // At the right edge (the test window keeps a margin of its own).
+        assert!(rail.min.x >= 1440.0 - craft_nora_ui::launcher::RAIL_WIDTH - 16.0, "at the right edge: {rail:?}");
         h.get_by_label("Open Nora").click();
         h.run_steps(4);
         assert!(h.state().ui.nora_pane, "open again");
