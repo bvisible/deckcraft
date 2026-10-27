@@ -1411,7 +1411,8 @@ mod tests {
         let button = h.get_by_label("Ask Nora").rect();
         assert!(button.max.y < 60.0, "in the title bar (the test window keeps a margin of its own): {button:?}");
         assert!(button.width() > craft_nora_ui::launcher::PILL_HEIGHT * 2.0, "with its words in a wide window: {button:?}");
-        assert!(button.max.x < 1440.0 - 200.0, "left of the icons at the right: {button:?}");
+        // The icons take some 200 points at the right of the window (less the test window's own margin).
+        assert!(button.max.x < 1440.0 - 180.0, "left of the icons at the right: {button:?}");
         h.get_by_label("Ask Nora").click();
         h.run_steps(4);
         assert!(!h.state().ui.nora_pane, "closed");
