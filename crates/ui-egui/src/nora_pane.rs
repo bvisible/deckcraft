@@ -267,7 +267,8 @@ fn header(ui: &mut Ui, t: &Tokens) -> bool {
     let mut close = false;
     ui.horizontal(|ui| {
         // Nora is a name, the same in every language.
-        ui.label(egui::RichText::new("Nora").font(theme::bold(16.0)));
+        // In the theme's text colour: egui's grey when the page followed the system into dark (craft-libs 4d7eea6).
+        ui.label(egui::RichText::new("Nora").font(theme::bold(16.0)).color(t.text));
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             let (r, resp) = ui.allocate_exact_size(vec2(20.0, 20.0), Sense::click());
             if resp.hovered() {

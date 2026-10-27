@@ -92,8 +92,10 @@ arboard = { version = "3.6", default-features = false }
 # //// Neoffice — 620d408 (24.10.2026): an action addressed to another conversation or document (a second editor open) is
 # refused, a reply that says done after its write was refused is corrected (`correction_words`), a card after the final
 # reply shows, a freeze is judged without the server's hours.
-craft-nora = { git = "https://github.com/bvisible/craft-libs", rev = "d9fc6e08ac558d7124e06be09637e88fe3b83349" }
-craft-nora-ui = { git = "https://github.com/bvisible/craft-libs", rev = "d9fc6e08ac558d7124e06be09637e88fe3b83349" }
+# //// Neoffice — 4d7eea6 (27.10.2026): Nora's button at the top of the editor (launcher, aa432bc, d9fc6e0), and the
+# pane's words readable on a dark pane (its text, weak words and buttons not usable yet above 4.5:1).
+craft-nora = { git = "https://github.com/bvisible/craft-libs", rev = "4d7eea6355e8695c4b70a4c1a6834344c1406c5c" }
+craft-nora-ui = { git = "https://github.com/bvisible/craft-libs", rev = "4d7eea6355e8695c4b70a4c1a6834344c1406c5c" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
