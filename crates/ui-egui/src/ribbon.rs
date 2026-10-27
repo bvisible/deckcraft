@@ -85,7 +85,8 @@ pub fn title_bar(app: &mut SlideApp, ui: &mut Ui) {
             .active()
             .map(|d| if dirty { format!("{} — {}", d.title(), l10n("Edited")) } else { d.title().to_string() }) // //// Neoffice — in the person's language (l10n)
             .unwrap_or_else(|| crate::brand::name().into());
-        ui.painter().text(rect.center(), Align2::CENTER_CENTER, title, theme::font(13.0), t.text);
+        // //// Neoffice — where the title ends: Nora's button goes after it (nora_pane.rs) ////
+        let title_rect = ui.painter().text(rect.center(), Align2::CENTER_CENTER, title, theme::font(13.0), t.text);
         // Right side.
         let mut right = ui.new_child(
             egui::UiBuilder::new()
@@ -122,7 +123,9 @@ pub fn title_bar(app: &mut SlideApp, ui: &mut Ui) {
         {
             let _ = app.run("view.dark", json!({}));
         }
-        crate::nora_pane::top_button(app, &mut right); // //// Neoffice — Nora's button, where the page offers her (nora_pane.rs) ////
+        // //// Neoffice — Nora's button, where the page offers her, between the title and the icons: their group has a
+        // fixed width that leaves no room for her words (nora_pane.rs) ////
+        crate::nora_pane::top_button(app, ui, title_rect.max.x, right.min_rect().min.x);
     });
 }
 

@@ -205,17 +205,28 @@ pub fn open_as_remembered(app: &mut SlideApp) -> Result<Value, String> {
     app.run("ui.nora", json!({"on": PaneMemory::new(MEMORY).open()}))
 }
 
-/// Nora's button in the title bar, at the right with its icons, whatever tab of the ribbon is in view, where the page
-/// offers Nora (craft-nora-ui `launcher::button`, NeoMail's « Ask Nora »): a click opens or closes the pane on the same
-/// conversation, and the person's choice is remembered in the browser. Lit while the pane is open.
-pub fn top_button(app: &mut SlideApp, ui: &mut Ui) {
+/// Nora's button in the title bar, whatever tab of the ribbon is in view, where the page offers Nora (craft-nora-ui
+/// `launcher`, NeoMail's « Ask Nora »): at the right, between the title, which ends at `after`, and the icons, which
+/// begin at `before`, with its words where they fit there and her sphere alone where they don't. A click opens or closes
+/// the pane on the same conversation, and the person's choice is remembered in the browser. Lit while the pane is open.
+pub fn top_button(app: &mut SlideApp, ui: &mut Ui, after: f32, before: f32) {
     if app.services.nora_http.is_none() {
         return;
     }
     let lang = app.nora.lang;
     let words = LauncherWords { label: tr(lang, "Ask Nora").to_string(), tip: tr(lang, "Nora, the Neoffice assistant").to_string() };
     let open = app.ui.nora_pane;
-    let response = craft_nora_ui::launcher::button(ui, &words, open);
+    let bar = ui.max_rect();
+    let end = before - 6.0;
+    // Her sphere has its place even where the title comes close to the icons (a narrow window).
+    let start = (after + 12.0).min(end - craft_nora_ui::launcher::PILL_HEIGHT);
+    let compact = end - start < craft_nora_ui::launcher::full_width(ui, &words);
+    let mut slot = ui.new_child(
+        egui::UiBuilder::new()
+            .max_rect(egui::Rect::from_min_max(egui::pos2(start, bar.min.y), egui::pos2(end, bar.max.y)))
+            .layout(egui::Layout::right_to_left(egui::Align::Center)),
+    );
+    let response = craft_nora_ui::launcher::button_sized(&mut slot, &words, open, compact);
     response.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::Button, true, open, &words.label));
     if response.clicked() && app.run("ui.nora", json!({"on": !open})).is_ok() {
         PaneMemory::new(MEMORY).remember(!open);
@@ -1399,6 +1410,8 @@ mod tests {
         assert_eq!(h.state().nora.session.thread_id(), Some("t1"));
         let button = h.get_by_label("Ask Nora").rect();
         assert!(button.max.y < 60.0, "in the title bar (the test window keeps a margin of its own): {button:?}");
+        assert!(button.width() > craft_nora_ui::launcher::PILL_HEIGHT * 2.0, "with its words in a wide window: {button:?}");
+        assert!(button.max.x < 1440.0 - 200.0, "left of the icons at the right: {button:?}");
         h.get_by_label("Ask Nora").click();
         h.run_steps(4);
         assert!(!h.state().ui.nora_pane, "closed");
@@ -1406,6 +1419,19 @@ mod tests {
         h.run_steps(4);
         assert!(h.state().ui.nora_pane, "open again");
         assert_eq!(h.state().nora.session.thread_id(), Some("t1"), "on the same conversation");
+        // In a narrow window, her sphere alone, still left of the icons.
+        let (services, _, _) = connected();
+        let mut narrow = Harness::builder().with_size(egui::vec2(640.0, 600.0)).build_ui_state(
+            |ui, app: &mut SlideApp| {
+                let ctx = ui.ctx().clone();
+                app.logic(&ctx);
+                app.ui(ui);
+            },
+            app(services),
+        );
+        narrow.run_steps(4);
+        let button = narrow.get_by_label("Ask Nora").rect();
+        assert_eq!(button.width(), craft_nora_ui::launcher::PILL_HEIGHT, "her sphere alone: {button:?}");
         // Where Nora isn't offered: no button.
         let h = harness(app(Services::default()));
         assert!(h.query_by_label("Ask Nora").is_none());
