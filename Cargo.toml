@@ -92,8 +92,8 @@ arboard = { version = "3.6", default-features = false }
 # //// Neoffice — 620d408 (24.10.2026): an action addressed to another conversation or document (a second editor open) is
 # refused, a reply that says done after its write was refused is corrected (`correction_words`), a card after the final
 # reply shows, a freeze is judged without the server's hours.
-craft-nora = { git = "https://github.com/bvisible/craft-libs", rev = "e1d72467769be1086d1227070fc12b610146baba" }
-craft-nora-ui = { git = "https://github.com/bvisible/craft-libs", rev = "e1d72467769be1086d1227070fc12b610146baba" }
+craft-nora = { git = "https://github.com/bvisible/craft-libs", rev = "aa432bc560b1ffda8d2779048c8c5db1f15c8de9" }
+craft-nora-ui = { git = "https://github.com/bvisible/craft-libs", rev = "aa432bc560b1ffda8d2779048c8c5db1f15c8de9" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

@@ -122,6 +122,7 @@ pub fn title_bar(app: &mut SlideApp, ui: &mut Ui) {
         {
             let _ = app.run("view.dark", json!({}));
         }
+        crate::nora_pane::top_button(app, &mut right); // //// Neoffice — Nora's button, where the page offers her (nora_pane.rs) ////
     });
 }
 
