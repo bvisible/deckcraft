@@ -81,7 +81,8 @@ their own `//// Neoffice — added file` header.
 - **A hosting page opens the presentations** (`Services::host_owns_documents`, set by `apps/deckcraft-web/src/web.rs` after
   the editor's own blank start, so only when a page frames the editor with `?host=parent`): the editor does not bring another presentation in beside
   the page's, close it or show its start screen. `file.new`, `file.close`, `file.open`, `file.openBytes`, `file.adopt`,
-  `file.recovery.open`, `app.openDialog`, `app.home` and `app.closePresentation` (`hidden_from_a_host`), and
+  `file.recovery.open`, `app.openDialog`, `app.home`, `app.closePresentation`, `view.newWindow` and `window.next`
+  (`hidden_from_a_host`; the View tab does not offer New Window: the page's presentation is the only one, in the only window the page gave it), and
   `app.backstage` asked for Home, New or Open (`backstage_leaves_the_page`), are refused with a status message (`run` in
   `crates/ui-egui/src/app/commands.rs`; `hidden_from_a_host` is in `lib.rs`); so is `close_presentation`, which Cmd+W, the File menu and the File tab call without
   `run`, and so are the engine's own shortcuts for them (Cmd+N, and Cmd+W while a freeform shape is drawn), which
@@ -93,7 +94,8 @@ their own `//// Neoffice — added file` header.
   palette does not list them (`menus.rs`). A presentation dropped on the editor is not taken (`opens_as_presentation`,
   asked by `apps/deckcraft-web/src/web.rs`, which cancels the request it began). The file the page hands over opens
   without `run` (see the bridge). Six tests in `crates/ui-egui/src/tests.rs` and one in `apps/deckcraft-web/src/host.rs`.
-  The words are English only, like the rest of the interface. Every other build behaves as before.
+  Reuse Slides and Compare (v0.14.1's commands that read another file) need no refusal: without a file picker (the browser) they say
+  "needs the desktop app" and open no document (a test says so). The words are English only, like the rest of the interface. Every other build behaves as before.
 
 - **The account button of the title bar** (new file `crates/ui-egui/src/account.rs`, with its tests; one marked line in
   `lib.rs` and one in `ribbon/title_bar.rs`): at the right end of the title bar, the button WordCraft has there, so
@@ -205,7 +207,8 @@ their own `//// Neoffice — added file` header.
 - **A ribbon too narrow for a tab folds its small buttons to icons** (from 2026-10-24; `widgets.rs`, `set_folded`,
   `small_button_drawn`, `small_button_tip`, and `ribbon.rs::show`): upstream's v0.14.1 reaches a group at the right of a too-wide tab
   by scrolling the ribbon (edge chevrons), which is needed sooner with the longer words of French or German. `ribbon::show` measures each
-  tab unfolded (per tab and language) and, while that width does not fit, draws its small buttons with their icon only,
+  tab unfolded (per tab and language; the width it needs is the one it has when it overflows on two frames in a row, because upstream's
+  galleries take a frame to give way to the groups after them) and, while that width does not fit, draws its small buttons with their icon only,
   as PowerPoint does on a narrow window; the label stays the button's accessible name and becomes its tooltip, unless
   the caller gives its own (`small_button_tip`). Only the ribbon's layer folds; the menus its buttons open keep their
   words. A tab still too wide folded is reached by upstream's scrolling and chevrons (our own sideways scroll was dropped at the v0.14.1 merge). Drop it when upstream collapses its groups.
