@@ -10,9 +10,12 @@ At the next upstream merge, `grep -rn "////"` in the source plus this file give 
 picture of what is ours and why.
 
 - **Upstream**: `storytold/deckcraft`, branch `main`.
-- **Base of the divergence**: `b47195feec0f0fe4220d8943ad1c8add5dad8072`, the tag `v0.10.0`, merged on 2026-10-24
-  (before: `fe510bdac68118f2c9a714e69d0ff572e3f9a0c7`, the tag `v0.9.0`, merged on 2026-10-22; and
-  `688c7ef592c901ca4541c25e210c1b302e4dc066`, the tag `v0.6.1`, where `version-15` was cut on 2026-10-13).
+- **Base of the divergence**: `ee39ff67816d0039143ec7c98ea604cefe0cd2e5`, the tag `v0.14.1`, merged on 2026-11-02
+  (before: `b47195feec0f0fe4220d8943ad1c8add5dad8072`, the tag `v0.10.0`, merged on 2026-10-24; `fe510bdac68118f2c9a714e69d0ff572e3f9a0c7`,
+  the tag `v0.9.0`, merged on 2026-10-22; and `688c7ef592c901ca4541c25e210c1b302e4dc066`, the tag `v0.6.1`, where `version-15` was cut on 2026-10-13).
+  The v0.14.1 merge: upstream split `ui-egui`'s `lib.rs`, `ribbon.rs`, `dialogs.rs`, `canvas.rs`, `show.rs`, `backstage.rs` and
+  `panes.rs` (now `panels/`) into modules, so our changes to them were carried to their new files by hand and by script
+  (the marker lines are the proof); egui is 0.37 with upstream's forks of egui and winit.
   Move it at each upstream merge. The check works it out itself (the common ancestor with
   upstream's `main`), so this line is for the reader.
 
@@ -34,7 +37,7 @@ their own `//// Neoffice — added file` header.
   reads on the Neoffice server.
 - **The host bridge of the browser build** (new file `apps/deckcraft-web/src/host.rs`; marked changes
   in `apps/deckcraft-web/src/web.rs`, `apps/deckcraft-web/src/main.rs`, the web-sys features of
-  `apps/deckcraft-web/Cargo.toml`, `crates/ui-egui/src/lib.rs` and `crates/engine/src/lib.rs`,
+  `apps/deckcraft-web/Cargo.toml`, `crates/ui-egui/src/services.rs` (and `app/files.rs` for Save) and `crates/engine/src/lib.rs`,
   `crates/engine/src/cmd/file.rs`, with a test in `crates/engine/src/tests.rs`): the `postMessage`
   contract of a page that frames the editor (`?host=parent`, same origin), the one upstream's
   GridCraft and PdfCraft already use, so one host page (the Drive of the Suite, NeoDesk's window)
@@ -80,7 +83,7 @@ their own `//// Neoffice — added file` header.
   the page's, close it or show its start screen. `file.new`, `file.close`, `file.open`, `file.openBytes`, `file.adopt`,
   `file.recovery.open`, `app.openDialog`, `app.home` and `app.closePresentation` (`hidden_from_a_host`), and
   `app.backstage` asked for Home, New or Open (`backstage_leaves_the_page`), are refused with a status message (`run` in
-  `crates/ui-egui/src/lib.rs`); so is `close_presentation`, which Cmd+W, the File menu and the File tab call without
+  `crates/ui-egui/src/app/commands.rs`; `hidden_from_a_host` is in `lib.rs`); so is `close_presentation`, which Cmd+W, the File menu and the File tab call without
   `run`, and so are the engine's own shortcuts for them (Cmd+N, and Cmd+W while a freeform shape is drawn), which
   `Session::key` runs without `run` (`host_keeps_the_key`). The File tab (upstream's backstage since v0.8, `crates/ui-egui/src/backstage.rs`) opens on Info, never on Home,
   New or Open (`open_backstage`), and its side menu has no Home, New, Open nor Close (`entries_for`); its Home page,
@@ -89,11 +92,11 @@ their own `//// Neoffice — added file` header.
   out Home, New and Open, in the bar and in its Customize menu, without changing the person's toolbar. The command
   palette does not list them (`menus.rs`). A presentation dropped on the editor is not taken (`opens_as_presentation`,
   asked by `apps/deckcraft-web/src/web.rs`, which cancels the request it began). The file the page hands over opens
-  without `run` (see the bridge). Six tests in `crates/ui-egui/src/lib.rs` and one in `apps/deckcraft-web/src/host.rs`.
+  without `run` (see the bridge). Six tests in `crates/ui-egui/src/tests.rs` and one in `apps/deckcraft-web/src/host.rs`.
   The words are English only, like the rest of the interface. Every other build behaves as before.
 
 - **The account button of the title bar** (new file `crates/ui-egui/src/account.rs`, with its tests; one marked line in
-  `lib.rs` and one in `ribbon.rs`'s `title_bar`): at the right end of the title bar, the button WordCraft has there, so
+  `lib.rs` and one in `ribbon/title_bar.rs`): at the right end of the title bar, the button WordCraft has there, so
   the four editors show the person the same way: a round badge in the accent colour, a square of the bar's control
   height (26, the Present button's), with up to two initials (the first letters of the words of `Prefs::author`, the
   name a hosting page passes as `?author=`), and the name, nothing else, as the hover text. The initials take, of
@@ -104,7 +107,7 @@ their own `//// Neoffice — added file` header.
 
 - **The Nora assistant pane** (new files `crates/ui-egui/src/nora_pane.rs` and `crates/ui-egui/src/neoffice_i18n.rs`, with
   their tests, `apps/deckcraft-web/src/web/nora.rs` and `apps/deckcraft-web/src/nora_origin.rs`; marked changes in the workspace `Cargo.toml`,
-  `crates/ui-egui/Cargo.toml`, `crates/ui-egui/src/lib.rs` (the modules, `Services::nora_http` and `nora_inbox`,
+  `crates/ui-egui/Cargo.toml`, `crates/ui-egui/src/lib.rs`, `services.rs`, `state.rs`, `app.rs` and `app/commands.rs` (the modules, `Services::nora_http` and `nora_inbox`,
   `UiState::nora_pane`, the `ui.nora` command, the pane in the layout, `SlideApp::nora`), `crates/ui-egui/src/dialogs.rs`
   (Preferences › Assistant), the web-sys features of `apps/deckcraft-web/Cargo.toml`, `apps/deckcraft-web/src/web.rs` and
   `apps/deckcraft-web/src/main.rs`): Neoffice's assistant, the chat at the right of the window that NeoWrite (WordCraft)
@@ -200,12 +203,12 @@ their own `//// Neoffice — added file` header.
   Drop the tables when upstream ships a catalog; its entries win, ours fill its gaps, as GridCraft's `i18n/neoffice.rs`.
 
 - **A ribbon too narrow for a tab folds its small buttons to icons** (from 2026-10-24; `widgets.rs`, `set_folded`,
-  `small_button_drawn`, `small_button_tip`, and `ribbon.rs::show`): upstream cuts off the groups at the right when a tab
-  is wider than the window, which came sooner with the longer words of French or German. `ribbon::show` measures each
+  `small_button_drawn`, `small_button_tip`, and `ribbon.rs::show`): upstream's v0.14.1 reaches a group at the right of a too-wide tab
+  by scrolling the ribbon (edge chevrons), which is needed sooner with the longer words of French or German. `ribbon::show` measures each
   tab unfolded (per tab and language) and, while that width does not fit, draws its small buttons with their icon only,
   as PowerPoint does on a narrow window; the label stays the button's accessible name and becomes its tooltip, unless
   the caller gives its own (`small_button_tip`). Only the ribbon's layer folds; the menus its buttons open keep their
-  words. A tab still too wide folded scrolls sideways (`ScrollArea::horizontal`) rather than cut off its last groups. Drop it when upstream collapses its groups.
+  words. A tab still too wide folded is reached by upstream's scrolling and chevrons (our own sideways scroll was dropped at the v0.14.1 merge). Drop it when upstream collapses its groups.
 
 - **The browser build reads its address's flags by name** (`apps/deckcraft-web/src/web.rs`, `has_param`, with
   `URLSearchParams` as `host.rs` reads its own): upstream looked for `webgl`, `blank` and `show` anywhere in the address's
@@ -220,13 +223,12 @@ their own `//// Neoffice — added file` header.
   looked as before. Upstream's v0.8 cures the same dashes another way (the Japanese face unhinted, with its own test);
   both stay: ours keeps Latin text in a Latin face.
 
-- **`slide.hide` and `slide.layout` refuse an index that is no slide** (`crates/engine/src/cmd/slide.rs`, `existing_slide`,
-  with a test, from 2026-10-24): a negative or fractional `index` fell back to the selected slides, one past the last
-  slide did nothing but answered as if done (an empty undo step). Upstream's v0.10.0 refuses it in `slide.delete`,
-  `slide.duplicate` and `slide.move` (`opt_usize_param`) but not in these two. Drop when upstream refuses it too.
+- **(gone) `slide.hide` and `slide.layout` refuse an index that is no slide**: upstream's v0.14.1 refuses it in these two as well
+  (`opt_usize_param`), so our `existing_slide` and its test were dropped at that merge.
 
 - **The browser build has the presentation fonts** (`.github/workflows/neoffice-web.yml`, `crates/fonts/build.rs`, from
-  2026-10-22): the web build checks out craft-fonts at the commit upstream's CI pins (`43913056`) and sets
+  2026-10-22): the web build checks out craft-fonts at the commit upstream's CI and release pin (`37827adc` since the v0.14.1 merge, before:
+  `43913056`) and sets
   `CRAFT_FONTS_DIR` (with `CRAFT_FONTS_REQUIRED`), as upstream's release does; before, it drew every presentation in
   egui's Ubuntu Light, with no bold. What a wasm build embeds stays upstream's choice (Inter Regular and Bold, BIZ
   UDPGothic Regular), plus Inter Italic (one marked line in `build.rs`), so italics are not drawn upright. Adobe's
@@ -254,7 +256,8 @@ their own `//// Neoffice — added file` header.
   languages). Nothing else moved. At an upstream merge, take upstream's lock and let cargo add these back (at the v0.9.0
   merge they were added by hand, the three packages and their three lines under `deckcraft-ui-egui`, and checked by the
   CI's `--locked` builds; at the v0.10.0 merge git's own merge of the lock kept them, and gave upstream's lock plus
-  these 33 lines, nothing else).
+  these 33 lines, nothing else; at the v0.14.1 merge upstream's lock was taken and `cargo metadata` added the same packages back,
+  with `craft-nora` and `craft-nora-ui` still at `4d7eea6` and no other change).
 
 ## Upstream files left as they are
 

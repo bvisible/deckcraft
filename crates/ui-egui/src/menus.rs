@@ -5,9 +5,8 @@ use deckcraft_engine::Mods;
 use serde_json::json;
 
 use crate::SlideApp;
+use crate::neoffice_i18n::l10n; // //// Neoffice — the interface in the person's language (l10n), see `neoffice_i18n`.
 use crate::theme::{self, Tokens};
-// //// Neoffice — the interface in the person's language: DeckCraft has no catalog, see `neoffice_i18n`.
-use crate::neoffice_i18n::l10n;
 
 /// Shortcuts the UI handles itself (views, show, zoom, palette, file dialogs). True when consumed.
 pub fn ui_shortcut(app: &mut SlideApp, key: egui::Key, m: Mods) -> bool {
@@ -74,6 +73,24 @@ pub fn ui_shortcut(app: &mut SlideApp, key: egui::Key, m: Mods) -> bool {
         }
         (F, true, false, false) => "app.find",
         (H, true, false, false) => "app.replace",
+        (Num1 | Num2 | Num3 | Num4 | Num5 | Num6 | Num7 | Num8 | Num9, false, false, true) => {
+            if app.session.mac_keys || app.backstage.is_some() || app.session.active().is_some_and(|d| d.selection.text.is_some()) {
+                return false;
+            }
+            let idx = match key {
+                Num1 => 0,
+                Num2 => 1,
+                Num3 => 2,
+                Num4 => 3,
+                Num5 => 4,
+                Num6 => 5,
+                Num7 => 6,
+                Num8 => 7,
+                Num9 => 8,
+                _ => return false,
+            };
+            return crate::qat::run_index(app, idx);
+        }
         _ => return false,
     };
     let _ = app.run(id, json!({}));
@@ -310,7 +327,7 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
             ],
         ),
         // //// Neoffice — our builds show our product's name (NEOFFICE_PRODUCT_NAME), upstream's otherwise.
-        ("Help", vec![(crate::brand::about(), "app.about"), ("Command Palette", "app.palette")]),
+        ("Help", vec![(crate::brand::about(), "app.about"), ("Check for Updates…", "app.checkUpdates"), ("Command Palette", "app.palette")]),
     ]
 }
 

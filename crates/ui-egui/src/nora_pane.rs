@@ -54,7 +54,7 @@ use serde_json::{Value, json};
 
 use crate::SlideApp;
 use crate::icons::{self, Icon};
-use crate::neoffice_i18n::{Lang, fmt, tr};
+use crate::neoffice_i18n::{Lang, fmt, tr}; // //// Neoffice — the interface in the person's language (l10n), see `neoffice_i18n`.
 use crate::theme::{self, Tokens};
 
 /// The most characters of the selection told to Nora with a message; she reads the presentation herself when she needs
