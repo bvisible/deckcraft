@@ -2508,7 +2508,7 @@ fn a_host_that_opens_the_presentations_keeps_cmd_n_from_the_engine() {
 // presentations offer nothing that brings another one in: no Home, New, Open nor Close.
 #[test]
 fn the_file_tab_and_the_toolbar_of_a_host_that_opens_the_presentations_stay_on_its_presentation() {
-    use egui_kittest::kittest::Queryable;
+    use egui_kittest::kittest::{NodeT, Queryable};
     // Buttons only: the pages have headings with the same words.
     let buttons = |h: &egui_kittest::Harness<'_, SlideApp>, label: &str| h.query_all_by_role_and_label(egui::accesskit::Role::Button, label).count();
     // //// Neoffice — the ribbon's Home tab is a button named "Home" too (v0.14.1 names its tabs): the toolbar's Home is
@@ -2527,7 +2527,8 @@ fn the_file_tab_and_the_toolbar_of_a_host_that_opens_the_presentations_stay_on_i
         harness.run_steps(3);
         // The toolbar's Home button (upstream's default toolbar has it).
         assert!(harness.state().ui.qat.iter().any(|q| q.id == "app.home"), "the person's toolbar is not changed");
-        homes.push(buttons(&harness, "Home"));
+        // The toolbar names its buttons with their shortcut where there is one ("Home (Alt+1)" off macOS): count by prefix.
+        homes.push(harness.query_all_by_label_contains("Home").filter(|n| n.accesskit_node().role() == egui::accesskit::Role::Button).count());
         harness.state_mut().run("app.backstage", json!({})).unwrap();
         harness.run_steps(3);
         for label in ["Home", "New", "Open", "Close"] {
