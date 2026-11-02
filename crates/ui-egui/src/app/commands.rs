@@ -1,9 +1,11 @@
 #[cfg(not(target_arch = "wasm32"))]
 use super::updates_ui;
 use super::{SlideApp, UI_COMMANDS, Value, ViewMode, backstage, dialogs, doc_window, json, media, qat, theme};
+// //// Neoffice — the commands a hosting page keeps for itself (see `run`).
+use super::{backstage_leaves_the_page, hidden_from_a_host};
 
 // //// Neoffice — added: what the status bar says when the editor leaves a command to the hosting page.
-const HOSTED_MESSAGE: &str = "This presentation is opened from the page that hosts the editor.";
+pub(super) const HOSTED_MESSAGE: &str = "This presentation is opened from the page that hosts the editor.";
 
 fn grid_options_touched(p: &Value) -> bool {
     ["spacing", "snap", "smartGuides", "gridlines", "guides"].iter().any(|k| p.get(*k).is_some())

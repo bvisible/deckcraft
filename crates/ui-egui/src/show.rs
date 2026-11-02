@@ -10,7 +10,6 @@ use egui::{Align2, Color32, CornerRadius, Mesh, Pos2, Rect, Sense, Stroke, Textu
 use serde_json::json;
 
 use crate::SlideApp;
-use crate::neoffice_i18n::{fmt, l10n}; // //// Neoffice — the interface in the person's language (l10n), see `neoffice_i18n`.
 use crate::theme;
 
 mod keys;

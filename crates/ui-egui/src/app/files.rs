@@ -2,6 +2,9 @@ use super::{
     FilePlace, FilePurpose, FileTarget, InboxEvent, LocatedPlace, PendingFile, RECENT_MAX, SlideApp, Target, UiRequest, Value, ViewMode, dialogs,
     json, media,
 };
+// //// Neoffice — our product's name, the commands a hosting page keeps for itself, and the status it gives for them.
+use super::commands::HOSTED_MESSAGE;
+use super::{Mods, brand, hidden_from_a_host, key_name};
 
 #[derive(Default)]
 pub(crate) struct PrintPreviews(Vec<std::path::PathBuf>);
@@ -171,7 +174,7 @@ impl SlideApp {
     // (`hidden_from_a_host`: Cmd+N `file.new`, Cmd+O `file.open`, Cmd+W `file.close`) don't reach `Session::key`,
     // which runs them without `run` (Cmd+N always, Cmd+W while a freeform shape is being drawn). True when the key was
     // one of them: the status bar says why nothing happened.
-    fn host_keeps_the_key(&mut self, key: egui::Key, mods: Mods) -> bool {
+    pub(super) fn host_keeps_the_key(&mut self, key: egui::Key, mods: Mods) -> bool {
         if !self.services.host_owns_documents {
             return false;
         }

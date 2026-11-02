@@ -96,13 +96,16 @@ fn a_resize_alone_settles_the_styles_row() {
     // row to the new width.
     let (mut h, _) = picture_format(1440.0);
     h.run_ok();
-    assert_eq!(inline_styles(&h), 2);
+    // //// Neoffice — 1440 px is too narrow for this tab unfolded, so the fork folds its small buttons to icons (see
+    // `ribbon::show`) and the row has the room that frees: the count at 1440 px is read, not fixed at two.
+    let narrow = inline_styles(&h);
+    assert!(narrow >= 2, "at least two styles at 1440 px: {narrow}");
     h.set_size(egui::vec2(1920.0, 900.0));
     assert!(h.run_ok().is_some(), "the ribbon keeps asking for frames after a resize");
     // The exact count depends on how wide the rest of the ribbon is; it only has to grow.
-    assert!(inline_styles(&h) > 2, "the row still has the 1440 px count after growing to 1920 px");
+    assert!(inline_styles(&h) > narrow, "the row still has the 1440 px count after growing to 1920 px"); // //// Neoffice — see `narrow`
     assert!(h.query_by_label("Scroll ribbon right").is_none());
     h.set_size(egui::vec2(1440.0, 900.0));
     h.run_ok();
-    assert_eq!(inline_styles(&h), 2, "the row still has the 1920 px count after shrinking to 1440 px");
+    assert_eq!(inline_styles(&h), narrow, "the row still has the 1920 px count after shrinking to 1440 px"); // //// Neoffice — see `narrow`
 }

@@ -9,6 +9,8 @@ use super::{
     PendingFile, Perf, Receiver, Session, SlideApp, Target, UI_COMMANDS, UiRequest, Value, backstage, canvas, capture, dialogs, doc_window,
     eyedropper, json, media, menus, notes, panes, preview, qat, ribbon, selpane, show, sorter, status, textures, theme, thumbs, toast, uifonts,
 };
+// //// Neoffice — what the hosted mode, the language and the Nora pane need from the crate root (used here and by `app/*`).
+use super::{backstage_leaves_the_page, brand, hidden_from_a_host, neoffice_i18n, nora_pane};
 
 mod clipboard;
 mod commands;

@@ -16,7 +16,7 @@ use serde_json::{Value, json};
 
 use crate::SlideApp;
 use crate::icons::{self, Icon};
-use crate::neoffice_i18n::{fmt, l10n}; // //// Neoffice — the interface in the person's language (l10n), see `neoffice_i18n`.
+use crate::neoffice_i18n::l10n; // //// Neoffice — the interface in the person's language (l10n), see `neoffice_i18n`.
 use crate::theme::{self, Tokens};
 
 mod files;
@@ -27,6 +27,8 @@ pub use files::split_path;
 use files::{home, new_page, open_page};
 use info::{PROPERTIES, account, commit_props, info, save_as};
 pub use info::{SAVE_TYPES, format_bytes};
+// //// Neoffice — the types Save As offers (the page's format only with a hosting page).
+pub use info::save_as_types;
 use print::{export, print};
 pub use print::{print_page_size, print_params, print_slides};
 

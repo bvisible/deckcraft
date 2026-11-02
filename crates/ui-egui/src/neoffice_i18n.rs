@@ -666,6 +666,7 @@ mod tests {
             delta: egui::vec2(-6000.0, 0.0),
             phase: egui::TouchPhase::Move,
             modifiers: egui::Modifiers::NONE,
+            source: egui::MouseWheelSource::Trackpad,
         });
         h.run_steps(30);
         let last = in_ribbon(&h, "Idées de création").expect("Design Ideas, still on the Home tab");

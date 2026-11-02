@@ -227,7 +227,7 @@ pub fn top_button(app: &mut SlideApp, ui: &mut Ui, after: f32, before: f32) {
             .layout(egui::Layout::right_to_left(egui::Align::Center)),
     );
     let response = craft_nora_ui::launcher::button_sized(&mut slot, &words, open, compact);
-    response.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::Button, true, open, &words.label));
+    response.widget_info(|| egui::WidgetInfo::selected(egui::Role::Button, true, open, &words.label));
     if response.clicked() && app.run("ui.nora", json!({"on": !open})).is_ok() {
         PaneMemory::new(MEMORY).remember(!open);
     }
@@ -2062,7 +2062,11 @@ mod tests {
     #[test]
     fn nora_waits_while_the_person_drags_a_slide_thumbnail() {
         let mut a = deck();
-        a.thumb_drag = Some((0, 1));
+        let (uid, ids) = {
+            let d = a.session.active().unwrap();
+            (d.uid, vec![d.doc.slides[0].id])
+        };
+        a.thumb_drag = Some(crate::thumbs::SlideDrag { uid, ids, slot: 1 });
         let before = Arc::clone(&a.session.active().unwrap().doc);
         let ctx = egui::Context::default();
         perform(&mut a, vec![Output::Document(DocumentCall { id: 1, kind: execute("slide.delete", json!({"index": 0})) })], &ctx);
@@ -2345,7 +2349,7 @@ mod tests {
     fn nora_waits_while_the_pointer_changes_the_presentation() {
         let mut a = deck();
         let before = Arc::clone(&a.session.active().unwrap().doc);
-        let drag = deckcraft_engine::Interaction { label: "Move".into(), doc: Arc::clone(&before), selection: Default::default() };
+        let drag = deckcraft_engine::Interaction { label: "Move".into(), doc: Arc::clone(&before), selection: Default::default(), vertex_kind: None };
         a.session.active_mut().unwrap().interaction = Some(drag);
         let ctx = egui::Context::default();
         let action = DocumentCall { id: 1, kind: execute("slide.new", json!({})) };

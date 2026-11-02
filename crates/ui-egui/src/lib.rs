@@ -80,6 +80,8 @@ pub use panels::selpane;
 pub use panels::thumbs;
 pub use ribbon::qat;
 pub use services::{DownloadFn, Inbox, InboxEvent, InboxFile, OpenAsyncFn, PickFn, ReadFn, Services, WriteFn};
+// //// Neoffice — the host bridge's and the Nora pane's types, and the check the web shell asks of a dropped file.
+pub use services::{HostSaveFn, HttpRequest, HttpResponse, NoraInbox, opens_as_presentation};
 use state::{FilePlace, FilePurpose, ImeDescriptorKey, ImeDestination, ImeTerminalStamp};
 pub use state::{RECENT_MAX, UiState, ViewMode, ZOOM_RANGE};
 
@@ -393,6 +395,10 @@ pub(crate) fn hidden_from_a_host(id: &str) -> bool {
             | "app.openDialog"
             | "app.home"
             | "app.closePresentation"
+            // //// Neoffice — another window on the presentation, and the switch between windows: the page's
+            // presentation is the only one, in the only window the page gave it (v0.14.1 keeps both).
+            | "view.newWindow"
+            | "window.next"
     )
 }
 

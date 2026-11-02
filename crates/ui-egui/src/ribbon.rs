@@ -139,7 +139,7 @@ pub fn show(app: &mut SlideApp, ui: &mut Ui) {
             let w = ui.fonts_mut(|f| f.layout_no_wrap(file.to_string(), theme::font(13.0), t.text).size().x) + 18.0;
             let r = Rect::from_min_size(pos2(x, y), vec2(w, 24.0));
             let resp = ui.interact(r, ui.scope_id().with("tab_file"), Sense::click());
-            resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, "File"));
+            resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, file)); // //// Neoffice — in the person's language (l10n)
             if resp.hovered() {
                 ui.painter().rect_filled(r.shrink2(vec2(2.0, 2.0)), CornerRadius::same(4), t.hover);
             }
@@ -211,11 +211,17 @@ pub fn show(app: &mut SlideApp, ui: &mut Ui) {
         if let Some(offset) = requested {
             area = area.horizontal_scroll_offset(offset);
         }
-        // //// Neoffice — fold a tab whose groups are wider than the ribbon (see `widgets::set_folded`): its width unfolded is
-        // measured whenever it is drawn unfolded, per tab and language, and it folds while that width does not fit. A tab
-        // still too wide folded scrolls, by upstream's scroll area and edge chevrons (below).
-        let natural_key = egui::Id::new(("neoffice_ribbon_natural_width", tab.clone(), crate::neoffice_i18n::Lang::system()));
-        let fold = ui.ctx().data(|d| d.get_temp::<f32>(natural_key)).is_some_and(|width| width > scroll_rect.width() + 0.5);
+        // //// Neoffice — fold a tab whose groups are wider than the ribbon (see `widgets::set_folded`). The width a tab needs
+        // is what it measures, per tab and language, when it is drawn unfolded and overflows on two frames in a row: a
+        // gallery that gives way to the groups after it (`spare_room`) takes a frame to do it, and the first frame of a tab
+        // has no room figure yet, so one wide frame says nothing. It folds while that width does not fit, unfolds when the
+        // ribbon is wide enough again, and forgets the figure when an unfolded tab fits. A tab still too wide folded
+        // scrolls, by upstream's scroll area and edge chevrons (below).
+        let lang = crate::neoffice_i18n::Lang::system();
+        let needs_key = egui::Id::unique(("neoffice_ribbon_needs_width", tab.clone(), lang));
+        let streak_key = egui::Id::unique(("neoffice_ribbon_overflow_streak", tab.clone(), lang));
+        let first_frame = spare_room(ui.ctx(), &tab).is_none();
+        let fold = ui.ctx().data(|d| d.get_temp::<f32>(needs_key)).is_some_and(|width| width > scroll_rect.width() + 0.5);
         widgets::set_folded(fold);
         let scroll =
             area.scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysHidden).auto_shrink([false, false]).show(&mut sui, |ui| {
@@ -251,9 +257,18 @@ pub fn show(app: &mut SlideApp, ui: &mut Ui) {
         widgets::set_folded(false);
         let r = scroll.inner_rect;
         if !fold {
-            ui.ctx().data_mut(|d| d.insert_temp(natural_key, scroll.content_size.x));
-            // A tab seen for the first time that does not fit folds at the next frame: ask for it.
-            if scroll.content_size.x > r.width() + 0.5 {
+            let overflows = scroll.content_size.x > r.width() + 0.5;
+            let streak = if overflows && !first_frame { ui.ctx().data(|d| d.get_temp::<u8>(streak_key)).unwrap_or(0).saturating_add(1) } else { 0 };
+            ui.ctx().data_mut(|d| {
+                d.insert_temp(streak_key, streak);
+                if streak >= 2 {
+                    d.insert_temp(needs_key, scroll.content_size.x);
+                } else if !overflows {
+                    d.remove_temp::<f32>(needs_key);
+                }
+            });
+            // A tab that overflows folds, or scrolls, a frame later: ask for it.
+            if overflows {
                 ui.ctx().request_repaint();
             }
         }

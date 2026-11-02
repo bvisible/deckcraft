@@ -111,7 +111,7 @@ mod about_credits_tests {
             let mut block = egui::Rect::NOTHING;
             let mut whole = egui::Rect::NOTHING;
             let mut out = ctx.run_ui(egui::RawInput::default(), |ui| {
-                tabs = ui.label(l10n("About")).rect; // //// Neoffice — in the person's language (l10n)
+                tabs = ui.label("About").rect;
                 block = credits_block(ui, models);
                 whole = ui.min_rect();
             });

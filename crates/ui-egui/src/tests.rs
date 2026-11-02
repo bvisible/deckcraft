@@ -2378,8 +2378,16 @@ fn a_host_that_opens_the_presentations_keeps_the_editor_on_its_presentation() {
         "app.openDialog",
         "app.home",
         "app.closePresentation",
+        "view.newWindow",
+        "window.next",
     ] {
         assert!(app.run(id, json!({})).is_err(), "{id} is the page's, not the editor's");
+    }
+    assert!(app.doc_window.is_none(), "no other window on the page's presentation");
+    // Reuse Slides and Compare read another file: the browser has no picker for them, and they open no document.
+    for id in ["app.reuseSlidesDialog", "app.compareDialog"] {
+        let _ = app.run(id, json!({}));
+        assert!(app.dialog.is_none(), "{id} opens nothing in an editor without a file picker");
     }
     for page in ["home", "new", "open"] {
         assert!(app.run("app.backstage", json!({"page": page})).is_err(), "File › {page} is the page's");
@@ -2503,6 +2511,9 @@ fn the_file_tab_and_the_toolbar_of_a_host_that_opens_the_presentations_stay_on_i
     use egui_kittest::kittest::Queryable;
     // Buttons only: the pages have headings with the same words.
     let buttons = |h: &egui_kittest::Harness<'_, SlideApp>, label: &str| h.query_all_by_role_and_label(egui::accesskit::Role::Button, label).count();
+    // //// Neoffice — the ribbon's Home tab is a button named "Home" too (v0.14.1 names its tabs): the toolbar's Home is
+    // what the count has more with no host.
+    let mut homes = vec![];
     for hosted in [false, true] {
         let services = Services { host_owns_documents: hosted, ..Default::default() };
         let mut harness = egui_kittest::Harness::builder().with_size(egui::vec2(1280.0, 800.0)).build_ui_state(
@@ -2516,7 +2527,7 @@ fn the_file_tab_and_the_toolbar_of_a_host_that_opens_the_presentations_stay_on_i
         harness.run_steps(3);
         // The toolbar's Home button (upstream's default toolbar has it).
         assert!(harness.state().ui.qat.iter().any(|q| q.id == "app.home"), "the person's toolbar is not changed");
-        assert_eq!(buttons(&harness, "Home") > 0, !hosted, "the toolbar's Home, hosted {hosted}");
+        homes.push(buttons(&harness, "Home"));
         harness.state_mut().run("app.backstage", json!({})).unwrap();
         harness.run_steps(3);
         for label in ["Home", "New", "Open", "Close"] {
@@ -2527,6 +2538,7 @@ fn the_file_tab_and_the_toolbar_of_a_host_that_opens_the_presentations_stay_on_i
         let page = harness.state().backstage.as_ref().map(|b| b.page);
         assert_eq!(page, Some(if hosted { backstage::Page::Info } else { backstage::Page::Home }));
     }
+    assert_eq!(homes[0], homes[1] + 1, "the toolbar's Home is there without a host and not with one: {homes:?}");
 }
 
 // //// Neoffice — the command palette of an editor whose hosting page opens the presentations does not list the

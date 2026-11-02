@@ -82,15 +82,19 @@ pub(super) fn view(app: &mut SlideApp, ui: &mut Ui) {
             app.ui.zoom = None;
         }
     });
-    group(ui, |ui| {
-        let has = app.session.active().is_some();
-        let on = app.doc_window.is_some();
-        let resp = big_button_ex(ui, Icon::NewWindow, "New\nWindow", has, false, on).0;
-        if resp.on_hover_text(l10n("Open another window on this presentation")).clicked() {
-            // //// Neoffice — in the person's language (l10n)
-            let _ = app.run("view.newWindow", json!({}));
-        }
-    });
+    // //// Neoffice — not offered when a hosting page opens the presentations: the page's is the only one, in the one
+    // window the page gave it (`hidden_from_a_host` refuses `view.newWindow` too).
+    if !app.services.host_owns_documents {
+        group(ui, |ui| {
+            let has = app.session.active().is_some();
+            let on = app.doc_window.is_some();
+            let resp = big_button_ex(ui, Icon::NewWindow, "New\nWindow", has, false, on).0;
+            if resp.on_hover_text(l10n("Open another window on this presentation")).clicked() {
+                // //// Neoffice — in the person's language (l10n)
+                let _ = app.run("view.newWindow", json!({}));
+            }
+        });
+    }
     group(ui, |ui| {
         let gs = app.ui.grayscale;
         if big_button_ex(ui, Icon::Grayscale, "Grayscale", true, false, gs).0.clicked() {

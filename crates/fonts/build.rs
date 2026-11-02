@@ -413,7 +413,8 @@ mod tests {
             assert!(native.contains(family), "missing prior presentation family {family}");
         }
         let web = input_fonts(Some(&fixture.0), true, true).unwrap();
-        assert_eq!(web.matches("CraftFont {").count(), 3, "Inter Regular/Bold and BIZ only");
+        // //// Neoffice — plus Inter Italic (see `manifest`): four faces, not three.
+        assert_eq!(web.matches("CraftFont {").count(), 4, "Inter Regular/Bold/Italic and BIZ only");
         for catalog in [&native, &web] {
             assert!(!catalog.contains("Source Sans 3"));
             assert!(!catalog.contains("Source Serif 4"));

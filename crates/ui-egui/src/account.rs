@@ -177,7 +177,9 @@ mod tests {
     fn hovering_the_button_shows_the_name_and_nothing_else() {
         let mut h = harness(Some("Jane Doe"), false);
         let circle = badge(&h, Tokens::light().accent).expect("the badge is painted");
-        assert!(h.query_by_label_contains("Jane Doe").is_none(), "the name is not shown before the pointer comes");
+        // //// Neoffice — egui 0.37 gives a widget its hover text as its accessible name: the name is shown, not only named.
+        assert!(text(&h, "Jane Doe").is_none(), "the name is not shown before the pointer comes");
+        assert!(h.query_by_role_and_label(egui::accesskit::Role::Label, "Jane Doe").is_none(), "no tooltip before the pointer comes");
         h.hover_at(circle.center);
         // Past egui's tooltip delay (half a second).
         h.run_steps(60);
