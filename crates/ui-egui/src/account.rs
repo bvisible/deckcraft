@@ -29,7 +29,7 @@ pub fn initials(name: &str) -> String {
     name.split_whitespace().filter_map(|w| w.chars().next()).take(2).collect()
 }
 
-/// The colour of text on the accent (the initials here, the person's own messages in the Nora pane):
+/// The colour of text on the accent (the initials here; the person's own messages in the Nora pane too, until craft-libs 7bc770d):
 /// of white and the theme's dark, the one that reads better there. On the dark theme the dark is
 /// the title bar's own colour (5:1, white 3:1); the light theme's bar is light, and none of its
 /// greys reaches 4.5:1 on its orange (its text 4:1, white 3.9:1), so it is the theme's darkest ink,

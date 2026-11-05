@@ -46,16 +46,16 @@ use craft_nora::{
     AppKind, CommandCall, CommandPolicy, DocActionKind, DocumentCall, DocumentInfo, HttpRequest, HttpResponse, Input, NoraError, NoraSession, Output,
     PageContext, Selection, SessionConfig,
 };
-use craft_nora_ui::{CorrectionWords, LauncherWords, NoraLabels, NoraPanel, NoraStyle, PaneMemory, PanelAction, ResumeWords, drive};
+use craft_nora_ui::{
+    ActivityWords, CorrectionWords, LauncherWords, NoraLabels, NoraPanel, PaneMemory, PaneWords, PanelAction, ResumeWords, VoiceWords, drive,
+};
 use deckcraft_engine::{DocState, History, Target};
 use deckcraft_model::{PhType, Presentation, Shape, ShapeId, ShapeKind, TextBody};
-use egui::{CornerRadius, Sense, Ui, vec2};
+use egui::Ui;
 use serde_json::{Value, json};
 
 use crate::SlideApp;
-use crate::icons::{self, Icon};
-use crate::neoffice_i18n::{Lang, fmt, tr}; // //// Neoffice — the interface in the person's language (l10n), see `neoffice_i18n`.
-use crate::theme::{self, Tokens};
+use crate::neoffice_i18n::{Lang, fmt, l10n_in, tr}; // //// Neoffice — the interface in the person's language (l10n), see `neoffice_i18n`.
 
 /// The most characters of the selection told to Nora with a message; she reads the presentation herself when she needs
 /// more.
@@ -166,9 +166,12 @@ impl Default for NoraState {
     fn default() -> Self {
         let context = PageContext::editor(AppKind::Deck, DocumentInfo::named(""));
         let config = SessionConfig { policy: policy(), ..SessionConfig::default() };
+        // The panel draws its own head and close button (the pane's frame is empty: `pane`).
+        let mut panel = NoraPanel::new();
+        panel.closable = true;
         NoraState {
             session: NoraSession::new(config, context),
-            panel: NoraPanel::new(),
+            panel,
             changes: Vec::new(),
             waiting: Vec::new(),
             lang: Lang::system(),
@@ -233,23 +236,18 @@ pub fn top_button(app: &mut SlideApp, ui: &mut Ui, after: f32, before: f32) {
     }
 }
 
-/// The pane at the right of the window, with the title row of DeckCraft's task panes ("Nora" and a close button), then
-/// the conversation.
+/// The pane at the right of the window. The panel draws its own canvas and head (her sphere and her name, a new
+/// conversation, a close button; the Neoffice design system's, `craft_nora_ui`), so the frame has no fill and no margin: the
+/// panel's separator line, which every side panel has, is the only line.
 pub fn pane(app: &mut SlideApp, ui: &mut Ui) {
-    let t = Tokens::get(ui.ctx());
-    egui::Panel::right("nora_pane")
-        .resizable(true)
-        .default_size(320.0)
-        .size_range(260.0..=560.0)
-        .frame(egui::Frame::NONE.fill(t.card).inner_margin(egui::Margin::same(10)))
-        .show(ui, |ui| {
-            if header(ui, &t) {
-                let _ = app.run("ui.nora", json!({"on": false}));
-                PaneMemory::new(MEMORY).remember(false);
-                return;
-            }
-            show(app, ui);
-        });
+    egui::Panel::right("nora_pane").resizable(true).default_size(340.0).size_range(280.0..=560.0).frame(egui::Frame::NONE).show(ui, |ui| {
+        show(app, ui);
+        // The close button is the panel's: it runs the command the title row's cross ran.
+        if app.nora.panel.take_close_request() {
+            let _ = app.run("ui.nora", json!({"on": false}));
+            PaneMemory::new(MEMORY).remember(false);
+        }
+    });
 }
 
 /// The conversation's frame while the pane is on but not drawn: the File tab (or the start screen) or a slide show
@@ -262,24 +260,16 @@ pub fn keep_up(app: &mut SlideApp, ctx: &egui::Context) {
     perform(app, outputs, ctx);
 }
 
-/// The title row of DeckCraft's task panes: the pane's name, and a close button. True when the button was clicked.
-fn header(ui: &mut Ui, t: &Tokens) -> bool {
-    let mut close = false;
-    ui.horizontal(|ui| {
-        // Nora is a name, the same in every language.
-        // In the theme's text colour: egui's grey when the page followed the system into dark (craft-libs 4d7eea6).
-        ui.label(egui::RichText::new("Nora").font(theme::bold(16.0)).color(t.text));
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            let (r, resp) = ui.allocate_exact_size(vec2(20.0, 20.0), Sense::click());
-            if resp.hovered() {
-                ui.painter().rect_filled(r, CornerRadius::same(4), t.hover);
-            }
-            icons::paint(ui.painter(), r.shrink(3.0), Icon::Close, t.text_dim, false);
-            close = resp.clicked();
-        });
-    });
-    ui.add_space(6.0);
-    close
+/// Nora's pump while the window is hidden: with the window behind another (or the tab in the background) the browser
+/// draws no frame and eframe runs only `logic`, so neither the pane's pump ([`show`]) nor [`keep_up`] ever runs and Nora's
+/// actions wait in the queue, the server asking again every fifteen seconds. Called from `SlideApp::logic`, it reads her
+/// queue, plays her actions and sends the answers while nothing is drawn; where a frame is drawn nothing changes. As for
+/// [`keep_up`], only while the pane is on (the conversation is the person's to close).
+pub fn pump_hidden(app: &mut SlideApp, ctx: &egui::Context) {
+    if !app.ui.nora_pane || app.services.nora_http.is_none() || !app.nora.session.is_busy() || crate::show::viewport_visible(ctx) {
+        return;
+    }
+    keep_up(app, ctx);
 }
 
 /// Draws the pane's content (inside the pane's frame) and moves the conversation along.
@@ -291,12 +281,17 @@ pub fn show(app: &mut SlideApp, ui: &mut Ui) {
     outputs.extend(incoming(app));
     let lang = app.nora.lang;
     app.nora.panel.labels = labels(lang);
+    app.nora.panel.pane_words = pane_words(lang);
+    app.nora.panel.activity_words = activity_words(lang);
+    app.nora.panel.voice_words = voice_words(lang);
     app.nora.panel.resume_words = resume_words(lang);
     app.nora.panel.correction_words = correction_words(lang);
     // The panel takes its words for a failure of the connection once, when it is made: given again each frame, as the
     // labels, so that they follow the pane's language.
     app.nora.panel = std::mem::take(&mut app.nora.panel).with_error_words(error_worder(lang));
-    app.nora.panel.style = style(ui);
+    // The microphone only where the host carries the recording to the server, and in the interface's language.
+    app.nora.panel.dictation = app.services.nora_dictation;
+    app.nora.session.set_language(lang.code());
     app.nora.panel.offline = app.services.nora_http.is_none().then(|| tr(lang, "Nora isn't available in this version yet").to_string());
     app.nora.panel.open_links = app.services.nora_open.is_some();
     for action in app.nora.panel.show(ui, &app.nora.session) {
@@ -1095,27 +1090,11 @@ fn context_of(app: &SlideApp) -> PageContext {
     PageContext::editor(AppKind::Deck, DocumentInfo { name: name_of(d), id, pages: u32::try_from(d.doc.slides.len()).ok(), selection })
 }
 
-/// The pane's bubbles in DeckCraft's own colours, light or dark: the person's messages on the accent, in the ink that
-/// reads on it (the account button's), Nora's on the hover grey.
-fn style(ui: &Ui) -> NoraStyle {
-    let t = Tokens::get(ui.ctx());
-    NoraStyle {
-        user_fill: Some(t.accent),
-        user_text: Some(crate::account::ink(&t)),
-        nora_fill: Some(t.hover),
-        nora_text: Some(t.text),
-        // //// Neoffice — Nora's bold words in the interface's bold family, when it has a bold face (Inter SemiBold or Bold,
-        // //// theme::has_bold_face); without one, drawn twice a pixel apart (`None`).
-        bold_family: theme::has_bold_face().then_some("bold"),
-        ..NoraStyle::default()
-    }
-}
-
-/// The words of the pane in the person's language. The pane's title row is DeckCraft's own, so the panel's title is
-/// left empty.
+/// The words of the pane in the person's language. The panel draws its own head (her sphere and her name), so the title is
+/// her name: a name, the same in every language.
 fn labels(lang: Lang) -> NoraLabels {
     NoraLabels {
-        title: String::new(),
+        title: "Nora".to_string(),
         new_conversation: tr(lang, "New conversation").to_string(),
         undo: tr(lang, "Undo").to_string(),
         undo_hint: tr(lang, "Undo the last change Nora made to the presentation").to_string(),
@@ -1130,6 +1109,47 @@ fn labels(lang: Lang) -> NoraLabels {
         refuse: tr(lang, "Refuse").to_string(),
         open: tr(lang, "Open").to_string(),
         describe: describer(lang),
+    }
+}
+
+/// The close button, the greeting and the ready requests of an empty page, in the person's language.
+fn pane_words(lang: Lang) -> PaneWords {
+    PaneWords {
+        // Close and Cancel are words of the interface, translated there.
+        close: l10n_in(lang, "Close").to_string(),
+        undo_change: tr(lang, "Undo this change").to_string(),
+        greeting: tr(lang, "How can I help?").to_string(),
+        suggestions: vec![
+            tr(lang, "Summarise this presentation").to_string(),
+            tr(lang, "Suggest a title for each slide").to_string(),
+            tr(lang, "Improve the wording of the slides").to_string(),
+        ],
+    }
+}
+
+/// What the line under the conversation says of what Nora is doing, in the person's language.
+fn activity_words(lang: Lang) -> ActivityWords {
+    ActivityWords {
+        thinking: tr(lang, "Nora is thinking…").to_string(),
+        reading: tr(lang, "Nora is reading the presentation…").to_string(),
+        writing: tr(lang, "Nora is editing the presentation…").to_string(),
+        handing: tr(lang, "Nora is finishing up…").to_string(),
+        // The symbol of the second, the same in each of the pane's languages.
+        seconds: "s".to_string(),
+    }
+}
+
+/// The microphone's words, in the person's language.
+fn voice_words(lang: Lang) -> VoiceWords {
+    VoiceWords {
+        dictate: tr(lang, "Dictate").to_string(),
+        stop: tr(lang, "Stop and keep what you said").to_string(),
+        cancel: l10n_in(lang, "Cancel").to_string(),
+        transcribing: tr(lang, "Writing down what you said…").to_string(),
+        nothing_heard: tr(lang, "I did not hear anything. Try again, a little closer to the microphone.").to_string(),
+        denied: tr(lang, "The microphone is blocked. Allow it for this page, then try again.").to_string(),
+        no_microphone: tr(lang, "No microphone found on this computer.").to_string(),
+        failed: tr(lang, "The dictation did not work. Try again, or type your request.").to_string(),
     }
 }
 
@@ -1226,7 +1246,7 @@ mod tests {
     use egui_kittest::kittest::Queryable;
 
     use super::*;
-    use crate::{NoraInbox, Services, UiState};
+    use crate::{NoraInbox, Services, UiState, theme};
 
     type Outbox = Arc<Mutex<Vec<HttpRequest>>>;
     type Harness = egui_kittest::Harness<'static, SlideApp>;
@@ -1474,7 +1494,7 @@ mod tests {
         assert!(h.query_all_by_label("Nora").next().is_some(), "the pane's title");
         assert!(h.query_by_label("Nora isn't available in this version yet").is_some());
         assert!(h.query_by_role(Role::MultilineTextInput).is_none(), "no text box to lose a message in");
-        // The title row's close button is a painted icon that runs this very command.
+        // The panel's own close button runs this very command (see `the_panel_draws_its_own_head_and_its_close_button_closes_the_pane`).
         h.state_mut().run("ui.nora", json!({"on": false})).unwrap();
         h.run_steps(4);
         assert!(h.query_by_label("Nora isn't available in this version yet").is_none(), "closed, it draws nothing");
@@ -1501,6 +1521,267 @@ mod tests {
         a.run("ui.nora", json!({"on": true})).unwrap();
         let h = harness(a);
         assert!(h.query_by_label("Demandez à Nora d'écrire, de réécrire, de traduire ou de mettre en forme votre présentation.").is_some());
+    }
+
+    /// The panel draws its own head (her sphere and her name, a new conversation, a close button), and its close button
+    /// does what the title row's cross did: closes the pane. The side panel's frame has no fill, no margin and no title
+    /// row of its own.
+    #[test]
+    fn the_panel_draws_its_own_head_and_its_close_button_closes_the_pane() {
+        for (lang, name, close, new_conversation) in [
+            (Lang::En, "Nora", "Close", "New conversation"),
+            (Lang::Fr, "Nora", "Fermer", "Nouvelle conversation"),
+            (Lang::De, "Nora", "Schliessen", "Neues Gespräch"),
+        ] {
+            let (services, _, _) = connected();
+            let mut a = app(services);
+            a.nora.lang = lang;
+            a.run("ui.nora", json!({"on": true})).unwrap();
+            let mut h = harness(a);
+            assert_eq!(h.query_all_by_label(name).count(), 1, "{lang:?}: her name at the head of the panel, once");
+            assert!(h.query_by_label(new_conversation).is_some(), "{lang:?}");
+            assert!(h.state().nora.panel.closable, "the panel carries the close button");
+            h.get_by_label(close).click();
+            h.run_steps(4);
+            assert!(!h.state().ui.nora_pane, "{lang:?}: closed by the panel's button");
+            assert!(h.query_by_label(new_conversation).is_none(), "{lang:?}: nothing of the pane is drawn any more");
+            assert!(!h.state_mut().nora.panel.take_close_request(), "{lang:?}: the request was taken");
+        }
+    }
+
+    /// An empty page greets, and offers three requests that are ready: one click sends it as if it had been typed.
+    #[test]
+    fn an_empty_page_greets_and_offers_three_ready_requests() {
+        let (services, outbox, inbox) = connected();
+        let mut a = app(services);
+        a.run("ui.nora", json!({"on": true})).unwrap();
+        let mut h = harness(a);
+        assert!(h.query_by_label("How can I help?").is_some());
+        for request in ["Summarise this presentation", "Suggest a title for each slide", "Improve the wording of the slides"] {
+            assert!(h.query_by_label(request).is_some(), "{request}");
+        }
+        h.get_by_label("Suggest a title for each slide").click();
+        h.run_steps(4);
+        let calls = take(&outbox);
+        assert_eq!(calls.len(), 1, "{calls:?}");
+        assert_eq!(calls[0].body["message"], "Suggest a title for each slide");
+        answer(&inbox, &calls[0], json!({"thread_id": "t1"}));
+        h.run_steps(4);
+        assert!(h.query_by_label("How can I help?").is_none(), "the greeting leaves once she is asked");
+
+        // The same page in French.
+        let mut a = app(Services::default());
+        a.nora.lang = Lang::Fr;
+        a.run("ui.nora", json!({"on": true})).unwrap();
+        let h = harness(a);
+        for word in [
+            "Comment puis-je vous aider ?",
+            "Résumer cette présentation",
+            "Proposer un titre pour chaque diapositive",
+            "Améliorer la formulation des diapositives",
+        ] {
+            assert!(h.query_by_label(word).is_some(), "{word}");
+        }
+    }
+
+    /// While she works the pane says what she is doing, in words (and no longer "Nora is working…"), and the change she
+    /// made can be taken back by a button under it, which exists only once she changed something.
+    #[test]
+    fn what_nora_is_doing_is_said_in_words_and_undo_exists_once_she_changed_something() {
+        for (lang, thinking) in [(Lang::En, "Nora is thinking…"), (Lang::Fr, "Nora réfléchit…")] {
+            let (services, outbox, inbox) = connected();
+            let mut a = app(services);
+            a.run("ui.nora", json!({"on": true})).unwrap();
+            let mut h = harness(a);
+            let polls = start(&mut h, &outbox, &inbox, "Write a greeting");
+            h.state_mut().nora.lang = lang;
+            h.run_steps(2);
+            assert!(h.query_by_label(thinking).is_some(), "{lang:?}: she is thinking");
+            assert!(h.query_by_label("Nora is working…").is_none(), "{lang:?}");
+            assert!(h.query_by_label(tr(lang, "Undo this change")).is_none(), "{lang:?}: nothing to take back yet");
+            // She types: the line follows what she does.
+            let actions = polls.iter().find(|r| r.path.ends_with("get_browser_actions")).expect("the actions are read");
+            let messages = polls.iter().find(|r| r.path.ends_with("get_messages")).expect("the replies are read");
+            answer(&inbox, messages, json!({"messages": []}));
+            answer(&inbox, actions, json!({"actions": [{"action": "doc_type_text", "text": "Bonjour tout le monde", "callback_id": "c1"}]}));
+            h.run_steps(2);
+            // The turn ends with her reply: the change can be taken back.
+            for _ in 0..40 {
+                for read in take(&outbox) {
+                    if read.path.ends_with("get_messages") {
+                        answer(&inbox, &read, json!({"messages": [{"role": "assistant", "text": "Done.", "ts": 4102444800.0}]}));
+                    } else if read.path.ends_with("get_browser_actions") {
+                        answer(&inbox, &read, json!({"actions": []}));
+                    }
+                }
+                h.run_steps(2);
+                if h.query_by_label(tr(lang, "Undo this change")).is_some() {
+                    break;
+                }
+            }
+            assert!(h.query_by_label(tr(lang, "Undo this change")).is_some(), "{lang:?}: the button under the change");
+        }
+    }
+
+    /// The microphone is offered only where the host says it carries a dictation to the server (`Services::nora_dictation`),
+    /// and never in a native build, which cannot record; the session is told the interface's language to transcribe in.
+    #[test]
+    fn the_microphone_is_offered_only_where_the_host_says_so_and_dictation_is_in_the_interface_language() {
+        for host_says in [false, true] {
+            let (mut services, outbox, _) = connected();
+            services.nora_dictation = host_says;
+            let mut a = app(services);
+            a.run("ui.nora", json!({"on": true})).unwrap();
+            let mut h = harness(a);
+            assert_eq!(h.state().nora.panel.dictation, host_says, "the panel is told what the host said");
+            assert!(!h.state().nora.panel.can_dictate(), "no microphone to open outside a browser");
+            assert!(h.query_by_label("Dictate").is_none());
+            // A recording goes to the server in the language of the interface (two letters).
+            for (lang, code) in [(Lang::En, "en"), (Lang::Fr, "fr"), (Lang::De, "de"), (Lang::It, "it"), (Lang::Es, "es")] {
+                h.state_mut().nora.lang = lang;
+                h.run_steps(2);
+                let sent = h.state_mut().nora.session.handle(Input::Transcribe { audio_base64: "AAAA".into(), mime: "audio/webm".into() });
+                let ctx = h.ctx.clone();
+                perform(h.state_mut(), sent, &ctx);
+                let calls = take(&outbox);
+                let call = calls.iter().find(|r| r.path.ends_with("stt.transcribe")).expect("the recording is sent to be written down");
+                assert_eq!(call.body["language"], code, "{lang:?}");
+            }
+        }
+        // The default build asks for nothing.
+        assert!(!Services::default().nora_dictation);
+    }
+
+    /// With the window hidden (behind another, or the tab in the background) the browser draws no frame and eframe runs
+    /// `logic` only: Nora's answers are still read, her actions played and their results sent, from `SlideApp::logic`.
+    /// A window that is drawn is left to its frames, as is a pane that is off or a build without a connection.
+    #[test]
+    fn nora_goes_on_while_the_window_is_hidden() {
+        let hidden = || {
+            let mut raw = egui::RawInput::default();
+            raw.viewports.insert(
+                egui::ViewportId::ROOT,
+                egui::ViewportInfo { minimized: Some(true), occluded: Some(true), native_pixels_per_point: Some(1.0), ..Default::default() },
+            );
+            raw
+        };
+        let waiting = |inbox: &NoraInbox| inbox.lock().unwrap_or_else(|e| e.into_inner()).len();
+        let (services, outbox, inbox) = connected();
+        let mut a = app(services);
+        a.run("ui.nora", json!({"on": true})).unwrap();
+        let ctx = egui::Context::default();
+        let sent = a.nora.session.handle(Input::Send("Write a greeting".into()));
+        perform(&mut a, sent, &ctx);
+        let first = take(&outbox);
+        assert_eq!(first.len(), 1, "{first:?}");
+        assert!(a.nora.session.is_busy());
+        answer(&inbox, &first[0], json!({"thread_id": "t1"}));
+
+        // Not hidden: the frames do it, `logic` leaves the answer where it is.
+        let _ = ctx.run_logic(&egui::RawInput::default(), |ctx| a.logic(ctx));
+        assert_eq!(waiting(&inbox), 1, "a window that is drawn is pumped by its frames");
+        assert!(take(&outbox).is_empty());
+        // Pane off: the conversation is the person's to close, nothing runs behind their back.
+        a.run("ui.nora", json!({"on": false})).unwrap();
+        let _ = ctx.run_logic(&hidden(), |ctx| a.logic(ctx));
+        assert_eq!(waiting(&inbox), 1, "a closed pane is not pumped");
+        a.run("ui.nora", json!({"on": true})).unwrap();
+
+        // Hidden: the answer is read, and at the next pass (the tick comes before the answers, as in a frame) she is asked
+        // for her replies and her actions.
+        let _ = ctx.run_logic(&hidden(), |ctx| a.logic(ctx));
+        assert_eq!(waiting(&inbox), 0, "the answer was read");
+        let _ = ctx.run_logic(&hidden(), |ctx| a.logic(ctx));
+        let polls = take(&outbox);
+        let actions = polls.iter().find(|r| r.path.ends_with("get_browser_actions")).expect("her actions are read while hidden");
+        let messages = polls.iter().find(|r| r.path.ends_with("get_messages")).expect("her replies are read while hidden");
+        // An action that arrives meanwhile is played in the presentation, and its result goes back to her.
+        answer(&inbox, messages, json!({"messages": []}));
+        answer(&inbox, actions, json!({"actions": [{"action": "doc_type_text", "text": "Bonjour tout le monde", "callback_id": "c1"}]}));
+        let _ = ctx.run_logic(&hidden(), |ctx| a.logic(ctx));
+        let typed =
+            a.session.active().unwrap().doc.slides[0].shapes.iter().any(|s| s.text.as_ref().is_some_and(|t| t.text() == "Bonjour tout le monde"));
+        assert!(typed, "her action was played while the window was hidden");
+        let told = take(&outbox);
+        let observation = told.iter().find(|r| r.path.ends_with("receive_observation")).expect("she gets the result");
+        assert_eq!(observation.body["callback_id"], "c1");
+        assert_eq!(observation.body["observation"]["ok"], true);
+
+        // Without a connection there is nothing to pump.
+        let mut offline = app(Services::default());
+        offline.run("ui.nora", json!({"on": true})).unwrap();
+        pump_hidden(&mut offline, &ctx);
+    }
+
+    /// The pane's word lists (what she is doing, the greeting and ready requests, the microphone) say in English what
+    /// craft-nora-ui says, with the presentation for the document, and are translated in every language: French as agreed.
+    #[test]
+    fn the_word_lists_are_translated_in_every_language() {
+        let default_voice = craft_nora_ui::VoiceWords::default();
+        assert_eq!(format!("{:?}", voice_words(Lang::En)), format!("{default_voice:?}"), "English is the panel's own");
+        let default_activity = ActivityWords::default();
+        let activity = activity_words(Lang::En);
+        assert_eq!(
+            (&activity.thinking, &activity.handing, &activity.seconds),
+            (&default_activity.thinking, &default_activity.handing, &default_activity.seconds)
+        );
+        assert_eq!(activity.reading, "Nora is reading the presentation…");
+        assert_eq!(activity.writing, "Nora is editing the presentation…");
+        let pane = pane_words(Lang::En);
+        assert_eq!((pane.close.as_str(), pane.undo_change.as_str(), pane.greeting.as_str()), ("Close", "Undo this change", "How can I help?"));
+        assert_eq!(pane.suggestions.len(), 3, "three ready requests at most");
+
+        let words = |lang: Lang| -> Vec<String> {
+            let (pane, activity, voice) = (pane_words(lang), activity_words(lang), voice_words(lang));
+            let mut all = vec![pane.close, pane.undo_change, pane.greeting];
+            all.extend(pane.suggestions);
+            all.extend([activity.thinking, activity.reading, activity.writing, activity.handing]);
+            all.extend([
+                voice.dictate,
+                voice.stop,
+                voice.cancel,
+                voice.transcribing,
+                voice.nothing_heard,
+                voice.denied,
+                voice.no_microphone,
+                voice.failed,
+            ]);
+            all
+        };
+        let english = words(Lang::En);
+        for lang in [Lang::Fr, Lang::De, Lang::It, Lang::Es] {
+            let translated = words(lang);
+            assert_eq!(translated.len(), english.len());
+            for (said, original) in translated.iter().zip(&english) {
+                assert!(!said.is_empty() && said != original, "{lang:?}: {original:?} is not translated ({said:?})");
+                assert_eq!(said.ends_with('…'), original.ends_with('…'), "{lang:?}: the ellipsis of {original:?}");
+            }
+            assert_eq!(activity_words(lang).seconds, "s", "{lang:?}: the second's symbol");
+        }
+        let french = words(Lang::Fr);
+        assert_eq!(
+            french,
+            [
+                "Fermer",
+                "Annuler cette modification",
+                "Comment puis-je vous aider ?",
+                "Résumer cette présentation",
+                "Proposer un titre pour chaque diapositive",
+                "Améliorer la formulation des diapositives",
+                "Nora réfléchit…",
+                "Nora lit la présentation…",
+                "Nora modifie la présentation…",
+                "Nora termine…",
+                "Dicter",
+                "Arrêter et garder ce que vous avez dit",
+                "Annuler",
+                "Nora écrit ce que vous avez dit…",
+                "Je n'ai rien entendu. Réessayez, un peu plus près du micro.",
+                "Le micro est bloqué. Autorisez-le pour cette page, puis réessayez.",
+                "Aucun micro n'a été trouvé sur cet ordinateur.",
+                "La dictée n'a pas fonctionné. Réessayez ou écrivez votre demande.",
+            ]
+        );
     }
 
     /// A message typed in the pane leaves as the first call of the conversation, carrying where the person is; the

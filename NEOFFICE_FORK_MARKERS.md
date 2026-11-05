@@ -182,6 +182,20 @@ their own `//// Neoffice — added file` header.
     pane. The rest of the Preferences dialog stays English. Errors that come from the engine are its own, in English.
     Since v0.8 the Preferences dialog has Cancel, which puts back what it opened with: the Nora switch is in that snapshot
     (`preferences_snapshot`, `restore_preferences`).
+  - **The pane of 2026-11-05** (craft-libs `7bc770d`, `Cargo.toml` and `Cargo.lock`; `nora_pane.rs`, `neoffice_i18n.rs`,
+    `app.rs`, `services.rs`, `apps/deckcraft-web/src/web/nora.rs`): the pane is redone in the Neoffice design system, the
+    same in every editor and in NeoMail (paper, ink, Karla and Forum, Lucide icons, Nora's sphere), and draws its own
+    head, with a new-conversation button and a close button (`NoraPanel::closable`, `take_close_request`), so the
+    frame of the side panel has no fill and no margin and the title row of DeckCraft's task panes is gone; the pane no
+    longer takes DeckCraft's colours (`style` is removed). What she is doing is said in words under the conversation
+    (`activity_words`: thinking, reading, editing the presentation, finishing up), an empty page greets and offers three
+    ready requests (`pane_words`), and Undo is a button under the change she made. A microphone dictates a request where the
+    browser can record and the hosting page says it carries the recording to the server: `window.deckcraftNoraDictation
+    = true` becomes `Services::nora_dictation` (`voice_words`, and the interface's language goes to the session with
+    `set_language`); natively it is never offered. Her clock runs while the window is hidden (`nora_pane::pump_hidden`,
+    called from `SlideApp::logic` when the pane is on, the session busy and the viewport hidden; a frame drawn, or the
+    File tab or a slide show, keeps the pumps it had). The new words are in `neoffice_i18n.rs`, in the four languages
+    (Close and Cancel are the interface's own).
 
 - **The interface in the person's language** (from 2026-10-24; `crates/ui-egui/src/neoffice_i18n.rs`, `l10n`, and its
   tables, new files under `crates/ui-egui/src/neoffice_i18n/`: `interface_keys.rs` and one table each for French,

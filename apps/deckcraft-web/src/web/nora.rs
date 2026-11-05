@@ -20,7 +20,10 @@
 //! A host that makes the calls itself offers `window.deckcraftNoraCall(path, body)`, on the page or on the page of the
 //! same origin that frames it, a promise of `{ status, body }` (`body` is the JSON of the call): the pane is then on
 //! without `?nora`, and every call goes through it. Neodesk does so: it calls with the person's credential, which
-//! neither its page nor the editor ever holds (the same as WordCraft's `wordcraftNoraCall`).
+//! neither its page nor the editor ever holds (the same as WordCraft's `wordcraftNoraCall`). A host that also carries a
+//! dictation to the server through that call (`nora.api.stt.transcribe`: the recording as base64, the host makes the form
+//! with the person's credentials) sets `window.deckcraftNoraDictation = true`, on the same page: the pane then offers its
+//! microphone, where the browser can record.
 
 use std::sync::{Arc, Mutex};
 
@@ -56,7 +59,18 @@ fn host_call() -> Option<(JsValue, js_sys::Function)> {
 /// A function the page, or the page of the same origin that frames it, offers the presentation under `name`: the
 /// window that offers it, and the function.
 fn host_function(name: &str) -> Option<(JsValue, js_sys::Function)> {
-    let window = web_sys::window()?;
+    host_windows().into_iter().find_map(|w| get(&w, name).filter(JsValue::is_function).map(|f| (w, js_sys::Function::from(f))))
+}
+
+/// Whether the page, or the page of the same origin that frames it, sets `name` to `true`.
+fn host_flag(name: &str) -> bool {
+    host_windows().iter().any(|w| get(w, name).and_then(|value| value.as_bool()) == Some(true))
+}
+
+/// The page, then the page of the same origin that frames it, if there is one: where the host's functions and flags are
+/// looked for.
+fn host_windows() -> Vec<JsValue> {
+    let Some(window) = web_sys::window() else { return Vec::new() };
     let own = JsValue::from(window.clone());
     let mut windows = vec![own.clone()];
     if let Ok(Some(parent)) = window.parent() {
@@ -66,7 +80,7 @@ fn host_function(name: &str) -> Option<(JsValue, js_sys::Function)> {
             windows.push(parent);
         }
     }
-    windows.into_iter().find_map(|w| get(&w, name).filter(JsValue::is_function).map(|f| (w, js_sys::Function::from(f))))
+    windows
 }
 
 /// One call made by the host: its answer read as a `fetch`'s (status 0 when it gave none).
@@ -91,6 +105,11 @@ pub fn connect(services: &mut Services, origin: String, ctx: egui::Context) {
             }
         }));
     }
+    // //// Neoffice — the host that carries a dictation to the server (`deckcraftNoraCall` with `nora.api.stt.transcribe`: the
+    // recording as base64, the host makes the form with the person's credentials) says so with
+    // `window.deckcraftNoraDictation = true`, on the page or the page that frames the editor; the pane then offers its
+    // microphone, where the browser can record. An older host never sets it: no microphone that would send nowhere.
+    services.nora_dictation = host_flag("deckcraftNoraDictation");
     let inbox: NoraInbox = Arc::new(Mutex::new(Vec::new()));
     services.nora_inbox = Some(inbox.clone());
     services.nora_http = Some(Box::new(move |request: HttpRequest| {

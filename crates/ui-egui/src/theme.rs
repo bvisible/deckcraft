@@ -270,7 +270,7 @@ pub fn add_fallback_faces(defs: &mut FontDefinitions, faces: &[std::sync::Arc<de
 }
 
 // //// Neoffice — whether the bold family has a bold face of its own (Inter SemiBold or Bold embedded from craft-fonts).
-// //// Without one it draws the regular face, and Nora's pane then draws its bold words twice instead (nora_pane::style).
+// //// Without one it draws the regular face. Nora's pane no longer asks (craft-libs 7bc770d: the pane draws its own Karla Bold).
 pub fn has_bold_face() -> bool {
     deckcraft_fonts::CRAFT_FONTS.iter().any(|f| f.family == "Inter" && matches!(f.style, "SemiBold" | "Bold"))
 }

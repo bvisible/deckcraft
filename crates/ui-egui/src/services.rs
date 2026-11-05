@@ -85,6 +85,9 @@ pub struct Services {
     // path only (`/drive/f/…`), already checked by craft-nora (`instance_path`). Without it the pane shows a link as its words.
     /// Open a page of the person's instance, by its path, the host's own way.
     pub nora_open: Option<Box<dyn Fn(&str)>>,
+    // //// Neoffice — the host carries a dictation to the server (`nora.api.stt.transcribe`, with the person's credentials):
+    // the pane then offers its microphone, where the browser can record. Off for every other build.
+    pub nora_dictation: bool,
     pub inbox: Option<Inbox>,
     /// Image on the system clipboard (PNG bytes), when the host can read one.
     pub clipboard_image: Option<Box<dyn FnMut() -> Option<Vec<u8>>>>,

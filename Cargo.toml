@@ -101,8 +101,11 @@ arboard = { version = "3.6", default-features = false }
 # reply shows, a freeze is judged without the server's hours.
 # //// Neoffice — 4d7eea6 (27.10.2026): Nora's button at the top of the editor (launcher, aa432bc, d9fc6e0), and the
 # pane's words readable on a dark pane (its text, weak words and buttons not usable yet above 4.5:1).
-craft-nora = { git = "https://github.com/bvisible/craft-libs", rev = "4d7eea6355e8695c4b70a4c1a6834344c1406c5c" }
-craft-nora-ui = { git = "https://github.com/bvisible/craft-libs", rev = "4d7eea6355e8695c4b70a4c1a6834344c1406c5c" }
+# //// Neoffice — 7bc770d (05.11.2026): the pane in the Neoffice design system (paper, ink, Karla and Forum, Lucide, Nora's
+# sphere), what Nora is doing in words, a microphone to dictate (`nora_dictation`), reads of her actions that follow what
+# happens in the turn, and a clock that runs while the window is hidden (`drive`, pumped from `logic`). egui 0.37 only.
+craft-nora = { git = "https://github.com/bvisible/craft-libs", rev = "7bc770dddb29447d042bb0a5ee4d5f4fa2aae5bb" }
+craft-nora-ui = { git = "https://github.com/bvisible/craft-libs", rev = "7bc770dddb29447d042bb0a5ee4d5f4fa2aae5bb" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

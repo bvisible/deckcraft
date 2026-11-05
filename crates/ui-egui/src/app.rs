@@ -239,6 +239,10 @@ impl SlideApp {
             // Inbox results are host file bytes and do not need fonts or a painted frame. A
             // window that starts hidden must still apply a file picked before its first UI pass.
             self.drain_inbox();
+            // //// Neoffice — Nora goes on reading her actions when the window is hidden (no frame is drawn then, so neither
+            // the pane's pump nor `keep_up` runs): see `nora_pane::pump_hidden`. Here, with the other work that changes the
+            // presentation, so that it waits for a live synthetic batch like they do.
+            nora_pane::pump_hidden(self, ctx);
         }
         self.drain_screenshots();
         // `raw_input_hook` ran before this logic pass. This is normally a no-op now that
