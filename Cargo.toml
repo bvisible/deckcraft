@@ -104,8 +104,9 @@ arboard = { version = "3.6", default-features = false }
 # //// Neoffice — 7bc770d (05.11.2026): the pane in the Neoffice design system (paper, ink, Karla and Forum, Lucide, Nora's
 # sphere), what Nora is doing in words, a microphone to dictate (`nora_dictation`), reads of her actions that follow what
 # happens in the turn, and a clock that runs while the window is hidden (`drive`, pumped from `logic`). egui 0.37 only.
-craft-nora = { git = "https://github.com/bvisible/craft-libs", rev = "7bc770dddb29447d042bb0a5ee4d5f4fa2aae5bb" }
-craft-nora-ui = { git = "https://github.com/bvisible/craft-libs", rev = "7bc770dddb29447d042bb0a5ee4d5f4fa2aae5bb" }
+# //// Neoffice — 3247387 (05.11.2026): a microphone whose audio context a browser starts on a gesture still hears, and the sphere is drawn 12 times a second.
+craft-nora = { git = "https://github.com/bvisible/craft-libs", rev = "324738706bc87d5cb8d87ab19414fd19c15eef34" }
+craft-nora-ui = { git = "https://github.com/bvisible/craft-libs", rev = "324738706bc87d5cb8d87ab19414fd19c15eef34" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
