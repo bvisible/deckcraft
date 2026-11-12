@@ -33,6 +33,9 @@ pub fn start() {
             log::error!("missing <canvas id=\"{CANVAS_ID}\">");
             return;
         };
+        // //// Neoffice — the Presenter View window is this same address with a token in its hash (`presenter::token`, upstream's
+        // popup of v0.15): it is never the framed page, so it gets neither the bridge to the page nor Nora's pane (below).
+        let presenter_popup = crate::presenter::token().is_some();
         let mut options = eframe::WebOptions::default();
         // //// Neoffice — the address's flags are read by name (`has_param`), not found anywhere in its text.
         if has_param("webgl")
@@ -41,8 +44,8 @@ pub fn start() {
             create.instance_descriptor.backends = eframe::wgpu::Backends::GL;
         }
         // //// Neoffice — a page that frames the editor and asks for the bridge (`?host=parent`) sends it the
-        // presentation to edit and takes what it saves.
-        let bridge = host::Bridge::requested();
+        // presentation to edit and takes what it saves. Upstream's own bridge (`craft-web-host`, v0.16) is not used: see `host.rs`.
+        let bridge = if presenter_popup { None } else { host::Bridge::requested() };
         let app_bridge = bridge.clone();
         let result = eframe::WebRunner::new()
             .start(
@@ -53,6 +56,10 @@ pub fn start() {
                         log::info!("deckcraft-web {}: wgpu backend {:?}", env!("CARGO_PKG_VERSION"), rs.adapter.get_info().backend);
                     }
                     deckcraft_ui_egui::install_ime_pass_hooks(&cc.egui_ctx);
+                    if let Some(token) = crate::presenter::token() {
+                        let presenter = crate::presenter::Popup::new(token, cc.egui_ctx.clone()).map_err(std::io::Error::other)?;
+                        return Ok(Box::new(presenter) as Box<dyn eframe::App>);
+                    }
                     let inbox: Inbox = Inbox::default();
                     let mut services = services(inbox.clone(), cc.egui_ctx.clone());
                     // //// Neoffice — the hosting page gets the saves and the exports, and sends the files.
@@ -93,12 +100,19 @@ pub fn start() {
                     if nora.is_some()
                         && let Err(e) = deckcraft_ui_egui::nora_pane::open_as_remembered(&mut app)
                     {
-                        log::error!("the Nora pane could not be opened: {e}");
+                        log::error!("the Nora pane could not be opened: {e}"); // //// Neoffice — see `nora` above.
                     }
                     // //// Neoffice — by name: `show` in a host name (`?nora=https://showroom…`) or in a name the page
                     // passes (`?author=`) started the slide show over the editor and its Nora pane.
                     if has_param("show") {
                         app.start_show(0, false);
+                    }
+                    // //// Neoffice — upstream's page API (`window.deckcraft`, v0.17) is a control channel over the whole app: it can
+                    // open a presentation (`app.open`), press keys, answer dialogs, quit. A page that hosts the editor (or connects Nora)
+                    // has the bridge and its own rules for what the editor may do, so the API is not installed there (and the editor
+                    // refuses control requests while a page hosts it: `control::handle`). Without a host, as upstream has it.
+                    if host::page_api_allowed(app_bridge.is_some(), nora.is_some()) {
+                        crate::api::install(&mut app, cc.egui_ctx.clone());
                     }
                     // //// Neoffice — the shell keeps the bridge to the hosting page.
                     Ok(Box::new(WebShell { app, inbox, bridge: app_bridge }))
@@ -147,13 +161,20 @@ struct WebShell {
 }
 
 impl eframe::App for WebShell {
-    /// Delegate one eframe logic pass to the wrapped application.
+    /// Delegate one eframe logic pass to the wrapped application, opening the files the parent
+    /// page sent first and telling it about unsaved changes after.
     fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // //// Neoffice — what the hosting page refused to store shows before the frame is drawn.
         if let Some(bridge) = &self.bridge {
             bridge.before_frame(&mut self.app);
         }
         self.app.logic(ctx);
+        // //// Neoffice — the hosting page hears about unsaved changes after the frame is drawn (`ui` below), not here.
+        if self.app.show.is_none()
+            && let Some(host) = self.app.services.presenter.as_mut()
+        {
+            host.close();
+        }
     }
 
     /// Consume browser drops with fresh input, capture the identity before the asynchronous read,
@@ -206,7 +227,15 @@ impl eframe::App for WebShell {
 /// back to `open_async` (browser picker → inbox) and `download`.
 fn services(inbox: Inbox, ctx: egui::Context) -> Services {
     let open_inbox = inbox.clone();
+    let presenter = match crate::presenter::BrowserHost::new(ctx.clone()) {
+        Ok(host) => Some(Box::new(host) as Box<dyn deckcraft_ui_egui::presenter::Host>),
+        Err(error) => {
+            log::error!("Presenter window: {error}");
+            None
+        }
+    };
     Services {
+        presenter,
         open_async: Some(Box::new(move |purpose: &str, request: u64| {
             let inbox = open_inbox.clone();
             let ctx = ctx.clone();

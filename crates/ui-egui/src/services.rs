@@ -10,7 +10,8 @@ pub type PickFn = Box<dyn FnMut(&str) -> Option<String>>;
 pub type OpenAsyncFn = Box<dyn FnMut(&str, u64)>;
 
 pub type DownloadFn = Box<dyn FnMut(&str, &[u8])>;
-// //// Neoffice — see `Services::host_save`.
+// //// Neoffice — see `Services::host_save`. Upstream's v0.16 has a type of this name for its own hook (`(name, bytes, save_as)`, and its
+// `SlideApp::save_to_host`); ours takes the presentation, so the page's rules for the name and the format stay with the bridge (`apps/deckcraft-web/src/host.rs`).
 pub type HostSaveFn = Box<dyn FnMut(&mut deckcraft_engine::DocState) -> Result<(), String>>;
 // //// Neoffice — added: whether a file is a presentation the editor would open (what a hosting page that opens the
 // presentations does not let a drop bring in).
@@ -48,6 +49,8 @@ pub use craft_nora::{HttpRequest, HttpResponse};
 /// Platform services injected by the host (desktop or web).
 #[derive(Default)]
 pub struct Services {
+    /// Browser-owned presenter popup; absent on native hosts.
+    pub presenter: Option<Box<dyn crate::presenter::Host>>,
     /// Open-file dialog for a purpose (`open`, `picture`, `audio`, `video`) → path.
     pub pick_open: Option<PickFn>,
     /// Save dialog with a suggested name → path.
@@ -97,4 +100,6 @@ pub struct Services {
     pub clipboard_set_html: Option<Box<dyn FnMut(&str, &str) -> bool>>,
     /// Audio output for media playback (cpal on desktop); without one media plays silently.
     pub audio_out: Option<Box<dyn deckcraft_media::AudioOut>>,
+    /// How many displays are connected, when the host can tell: Presenter View needs a second.
+    pub displays: Option<Box<dyn FnMut() -> Option<usize>>>,
 }

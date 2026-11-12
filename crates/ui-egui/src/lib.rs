@@ -34,6 +34,7 @@ pub mod menus;
 pub mod neoffice_i18n;
 pub mod nora_pane;
 pub mod opening;
+pub mod presenter;
 pub mod ribbon;
 pub mod settings;
 pub mod show;
@@ -138,7 +139,7 @@ pub const UI_COMMANDS: &[(&str, &str, Option<&str>, &str)] = &[
     ("show.end", "End Show", None, "{}"),
     ("animation.preview", "Preview Animations", None, "{on?: bool, from?: effect index}"),
     ("app.home", "Home", None, "{on?}"),
-    ("app.backstage", "File", Some("Alt+F"), "{page?: home|new|open|info|saveAs|print|export|account, on?: bool}"),
+    ("app.backstage", "File", Some("Alt+F"), "{page?: home|new|open|info|saveAs|print|export|about, on?: bool}"),
     ("app.closePresentation", "Close", Some("Cmd+W"), "{}"),
     (
         "app.print",
@@ -348,6 +349,9 @@ pub struct SlideApp {
     pending_files: Vec<PendingFile>,
     // //// Neoffice — the conversation of the Nora assistant pane (see `nora_pane`).
     pub nora: nora_pane::NoraState,
+    /// The empty presentation host mode starts with ([`SlideApp::start_for_host`]), until the
+    /// first file the page sends takes its place.
+    host_start: Option<u64>,
     /// Owner/generation/cause bookkeeping for the canvas text IME producer.
     ime_tracker: egui::ime_context::ImeContextTracker,
     /// Canvas IME geometry for this pass: the caret while editing, or the selected shape.
@@ -532,6 +536,10 @@ mod datetime_tests;
 
 #[cfg(test)]
 mod inbox_tests;
+
+// //// Neoffice — upstream's `host_save_tests.rs` is not built: it tests upstream's own `Services::host_save` (a hook that takes the
+// name, the bytes and "save as", and names an untitled presentation `.deckcraft`). Ours takes the presentation and the page's own
+// rules (`apps/deckcraft-web/src/host.rs`: an untitled one is `<title>.pptx`), with its tests there. The file is left as upstream has it.
 
 #[cfg(test)]
 mod tests;

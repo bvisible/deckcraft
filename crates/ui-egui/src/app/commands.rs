@@ -32,6 +32,9 @@ impl SlideApp {
         }
         let r = if UI_COMMANDS.iter().any(|c| c.0 == id) {
             self.run_ui(id, &params)
+        // //// Neoffice — upstream's branch for `file.save` with its own `host_save` (`save_to_host`) is gone, see `Services::host_save`:
+        // with a hosting page the engine's `file.save` finds no path (the page's file is `DocState::opened_from`), and asks for Save As,
+        // which `drain_requests` turns into `save_as_dialog`, whose `host_save` is the bridge's.
         } else {
             self.session.execute(id, &params).map_err(|e| e.to_string())
         };

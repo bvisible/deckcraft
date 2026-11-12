@@ -249,6 +249,13 @@ fn mark_unsaved(session: &mut Session, uid: u64) {
     }
 }
 
+/// Whether upstream's page API (`window.deckcraft`, a control channel over the whole editor) is installed: only on a page that
+/// is neither framed by a hosting page (`hosted`, the bridge) nor connected to Nora (`nora`). The editor refuses control requests
+/// while a page hosts it as well (`deckcraft_ui_egui::control::handle`), whatever this says.
+pub fn page_api_allowed(hosted: bool, nora: bool) -> bool {
+    !hosted && !nora
+}
+
 /// `Couldn't open <name>: <why>`, without the name twice when the editor's own words start with it.
 fn could_not_open(name: &str, why: &str) -> String {
     let why = why.strip_prefix(name).and_then(|rest| rest.strip_prefix(": ")).unwrap_or(why);
@@ -465,6 +472,16 @@ mod tests {
         });
         let services = Services { host_save: Some(service), ..Default::default() };
         (SlideApp::new(Session::new(), services), hosted, posted)
+    }
+
+    /// Upstream's page API (`window.deckcraft`) is a control channel over the whole editor: it is installed only on a page that no page hosts
+    /// and that is not connected to Nora (and the editor refuses control requests while a page hosts it, whatever this says).
+    #[test]
+    fn the_page_api_is_installed_only_without_a_host() {
+        assert!(page_api_allowed(false, false));
+        assert!(!page_api_allowed(true, false), "a page frames the editor");
+        assert!(!page_api_allowed(true, true));
+        assert!(!page_api_allowed(false, true), "the page connects Nora");
     }
 
     /// A presentation of three slides, as the page would send it, in `format`.

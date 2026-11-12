@@ -378,6 +378,54 @@ fn title_bar_export_opens_the_export_dialog() {
     assert_eq!(harness.state().dialog.as_ref().map(|d| d.id.as_str()), Some("export"));
 }
 
+/// A browser's Copy Image puts the picture on the clipboard with text that only names it: the
+/// address (and the alt text), and an `<img>` fragment as HTML. Ctrl+V pastes the picture, as
+/// PowerPoint does, instead of a text box with the link. Without a picture the link pastes as text.
+#[test]
+fn ctrl_v_pastes_the_picture_a_browser_copied_not_its_link() {
+    let url = "https://github.com/storytold/deckcraft/raw/main/assets/app-icon/hicolor/256x256/apps/ai.storyteller.deckcraft.png";
+    let caption = format!("{url}\nDeckCraft icon: a presentation screen with a bar chart on an orange tile");
+    for (text, html, with_picture, pictures_after) in [
+        (caption.clone(), Some(format!("<img src=\"{url}\" alt=\"DeckCraft icon\">")), true, 1),
+        (url.to_string(), None, true, 1),
+        // Firefox's text/x-moz-url is UTF-16; read as UTF-8 it carries NULs.
+        (url.chars().flat_map(|c| [c, '\0']).collect(), None, true, 1),
+        (url.to_string(), None, false, 0),
+        ("See https://example.com for the photos".to_string(), None, true, 0),
+    ] {
+        let session = Session::with_new();
+        let png = {
+            let d = session.active().unwrap();
+            deckcraft_engine::cmd::file::render_png(&d.doc, 0, 0.1, false).0
+        };
+        let services = Services {
+            clipboard_image: Some(Box::new(move || with_picture.then(|| png.clone()))),
+            clipboard_html: Some(Box::new(move || html.clone())),
+            ..Default::default()
+        };
+        let mut harness = egui_kittest::Harness::builder().with_size(egui::vec2(1200.0, 800.0)).build_ui_state(
+            |ui, app: &mut SlideApp| {
+                app.logic(ui.ctx());
+                app.ui(ui);
+            },
+            SlideApp::new(session, services),
+        );
+        harness.run_steps(2);
+        let shapes_before = harness.state().session.active().unwrap().doc.slides[0].shapes.len();
+        harness.event(egui::Event::Paste(text.clone()));
+        harness.run_steps(2);
+        let d = harness.state().session.active().unwrap();
+        let shapes = &d.doc.slides[0].shapes;
+        let pictures = shapes.iter().filter(|s| matches!(s.kind, deckcraft_model::ShapeKind::Picture { .. })).count();
+        assert_eq!(pictures, pictures_after, "{text:?}");
+        assert_eq!(shapes.len(), shapes_before + 1, "one shape, picture or text, for {text:?}");
+        if pictures_after == 0 {
+            let pasted = shapes.last().and_then(|s| s.text.as_ref()).map(deckcraft_model::TextBody::text);
+            assert_eq!(pasted.as_deref(), Some(text.as_str()), "the text survives");
+        }
+    }
+}
+
 /// #53: Ctrl+V did nothing for an image-only clipboard: egui-winit sends no Paste event for it and
 /// swallows the key press, so only the V release reaches the app.
 #[test]
@@ -999,7 +1047,8 @@ fn the_language_dialog_marks_the_selected_text() {
     harness.state_mut().run("app.dialog", json!({"id": "language"})).unwrap();
     // The anchored window settles over its first frames; click once it stays put.
     harness.run_steps(4);
-    harness.get_by_label("Français (France)").click();
+    // Installed dictionaries append a marker to the language's accessible label.
+    harness.get_by_label_contains("Français (France)").click();
     harness.run_steps(2);
     harness.get_by_label("OK").click();
     harness.run_steps(2);
@@ -1172,6 +1221,56 @@ fn step_app(services: Services) -> egui_kittest::Harness<'static, SlideApp> {
     );
     h.run_steps(2);
     h
+}
+
+/// #1855: text pasted into the focused speaker-notes field lands at its caret. While a stock
+/// field has the focus, `SlideApp::keyboard` leaves the batch to it and nothing in the app drops
+/// `Paste`, whether it arrives alone or inside the ⌘V batch egui-winit sends (V down, Paste, V up).
+#[test]
+fn paste_reaches_the_focused_notes_field() {
+    let mut h = step_app(Services::default());
+    let id = egui::Id::unique("notes_edit");
+    h.ctx.memory_mut(|m| m.request_focus(id));
+    h.run_steps(2);
+    assert!(h.ctx.memory(|m| m.has_focus(id)), "the notes field has the focus");
+    h.event(egui::Event::Text("ab".into()));
+    h.run_steps(2);
+    h.event(egui::Event::Paste("PASTED".into()));
+    h.run_steps(2);
+    assert_eq!(h.state().notes_buf.2.text, "abPASTED", "a bare Paste event");
+    let v = |pressed| egui::Event::Key { key: egui::Key::V, physical_key: None, pressed, repeat: false, modifiers: egui::Modifiers::COMMAND };
+    h.input_mut().events.extend([v(true), egui::Event::Paste("TWO".into()), v(false)]);
+    h.run_steps(2);
+    assert_eq!(h.state().notes_buf.2.text, "abPASTEDTWO", "the ⌘V batch");
+    // Leaving the field commits the notes to the slide.
+    h.ctx.memory_mut(|m| m.surrender_focus(id));
+    h.run_steps(3);
+    assert_eq!(h.state().session.active().unwrap().doc.slides[0].notes_text(), "abPASTEDTWO");
+}
+
+/// #1956: the ribbon's drop-downs are announced by their purpose, not by their value or an
+/// internal key. Animations › Start with a shape that has no animation was "astart"; Home's Font
+/// and Font size boxes were "font" and "size" while nothing told them a font or size.
+#[test]
+fn ribbon_dropdowns_are_named_by_purpose_even_when_empty() {
+    use egui::accesskit::Role;
+    let mut h = step_app(Services::default());
+    // A fresh shape, selected but not edited and without an animation.
+    h.state_mut().run("shape.insert", json!({"preset": "rect", "rect": [100.0, 100.0, 200.0, 100.0]})).unwrap();
+    h.state_mut().run("text.exit", json!({})).unwrap();
+    h.state_mut().ui.tab = "Animations".into();
+    h.run_steps(2);
+    let start = h.get_by_role_and_label(Role::ComboBox, "Start");
+    assert_eq!(start.value(), None, "no animation, no start value");
+    assert!(h.query_by_label("astart").is_none(), "the internal key is not a name");
+
+    h.state_mut().ui.tab = "Home".into();
+    h.state_mut().run("edit.select", json!({"ids": []})).unwrap();
+    h.run_steps(2);
+    for (name, key) in [("Font", "font"), ("Font size", "size")] {
+        assert!(h.query_by_role_and_label(Role::ComboBox, name).is_some(), "{name} is named while empty");
+        assert!(h.query_by_role_and_label(Role::ComboBox, key).is_none(), "{key} is not announced");
+    }
 }
 
 /// Copy of a bold selection offers HTML; paste of Pages-like HTML keeps the bold.
@@ -2588,4 +2687,146 @@ fn only_a_presentation_is_a_presentation() {
     for name in ["p.png", "clip.mp4", "song.mp3", "outline.txt", "notes.md", "t.xlsx"] {
         assert!(!opens_as_presentation(name), "{name}");
     }
+}
+
+// //// Neoffice — the control channel (the desktop's `--control`, the browser's `window.deckcraft` since upstream's v0.17) reaches what `run` does not
+// (`app.open` opens a presentation, `app.quit` closes the window): while a page hosts the editor every request is refused, and nothing is run.
+#[test]
+fn control_is_refused_when_a_page_hosts_the_editor() {
+    let ctx = egui::Context::default();
+    let ask = |app: &mut SlideApp, method: &str, params: Value| {
+        let (tx, rx) = std::sync::mpsc::channel();
+        app.control_rx = Some(rx);
+        let (req, reply) = ControlRequest::new(method, params);
+        tx.send(req).unwrap();
+        app.logic(&ctx);
+        reply.recv_timeout(std::time::Duration::from_secs(1)).expect("every request is answered")
+    };
+    let mut hosted = SlideApp::new(Session::with_new(), Services { host_owns_documents: true, ..Default::default() });
+    let before = hosted.session.documents().len();
+    for (method, params) in [
+        ("app.open", json!({"path": "/nonexistent/other.pptx"})),
+        ("engine.execute", json!({"command": "file.new"})),
+        ("engine.execute", json!({"command": "slide.new"})),
+        ("command", json!({"id": "view.newWindow"})),
+        ("engine.commands", json!({})),
+        ("document.inspect", json!({})),
+        ("ui.inspect", json!({})),
+        ("ui.key", json!({"key": "n", "cmd": true})),
+        ("ui.dialog.open", json!({"id": "about"})),
+        ("app.save", json!({})),
+        ("app.quit", json!({})),
+        ("no.such.method", json!({})),
+    ] {
+        let reply = ask(&mut hosted, method, params);
+        assert_eq!(reply["ok"], false, "{method} is the page's, not the control channel's: {reply}");
+        assert_eq!(reply["error"], control::HOSTED_CONTROL_MESSAGE, "{method}");
+    }
+    assert_eq!(hosted.session.documents().len(), before, "no request opened, created or closed a presentation");
+    assert_eq!(hosted.session.active().map(|d| d.doc.slides.len()), Some(1), "`slide.new` was not run");
+    assert!(!hosted.quit_confirmed, "`app.quit` was not run");
+    // Without a hosting page it is upstream's, as the desktop's `--control` needs it.
+    let mut alone = SlideApp::new(Session::with_new(), Services::default());
+    assert_eq!(ask(&mut alone, "ui.inspect", json!({}))["ok"], true);
+    assert_eq!(ask(&mut alone, "engine.execute", json!({"command": "slide.new"}))["ok"], true);
+}
+
+// //// Neoffice — the document of the page stays the only one (rule of the four Craft editors): whatever the command and whatever it is given, an editor
+// whose page opens the presentations (`Services::host_owns_documents`) keeps its one presentation, in its one window, and the File tab never lands on
+// the pages that bring another one in. Every command of the engine and of the interface is run, so that a command upstream adds later, which would
+// open, create, close or switch a presentation without being named in `hidden_from_a_host`, is caught here.
+#[test]
+fn no_command_opens_creates_or_closes_a_presentation_in_an_editor_a_page_hosts() {
+    // `app.checkUpdates` is the desktop's update check, which reaches the network on a native build.
+    const SKIPPED: &[&str] = &["app.checkUpdates"];
+    let services = Services {
+        host_owns_documents: true,
+        download: Some(Box::new(|_: &str, _: &[u8]| {})),
+        open_async: Some(Box::new(|_: &str, _: u64| {})),
+        ..Default::default()
+    };
+    let mut app = SlideApp::new(Session::with_new(), services);
+    let uid = app.session.active().map(|d| d.uid).unwrap();
+    let mut ids: Vec<String> = deckcraft_engine::command_specs().iter().map(|c| c.id.to_string()).collect();
+    ids.extend(UI_COMMANDS.iter().map(|c| c.0.to_string()));
+    ids.sort();
+    ids.dedup();
+    assert!(ids.len() > 300, "the sweep reaches every command, not {}", ids.len());
+    let bytes = {
+        let mut other = Session::with_new();
+        let r = other.execute("file.saveBytes", &json!({"format": "pptx"})).unwrap();
+        r.get("data").and_then(Value::as_str).unwrap().to_string()
+    };
+    let givens = [
+        json!({}),
+        json!({"path": "/nonexistent/other.pptx"}),
+        json!({"path": "/nonexistent/other.pptx", "token": 1}),
+        json!({"name": "other.pptx", "data": bytes}),
+        json!({"on": true, "page": "open", "purpose": "open", "slide": 0, "delta": 1, "from": 0}),
+    ];
+    for id in ids.iter().filter(|id| !SKIPPED.contains(&id.as_str())) {
+        for given in &givens {
+            let _ = app.run(id, given.clone());
+            let what = format!("{id} {given}");
+            assert_eq!(app.session.documents().len(), 1, "{what} brought a presentation in or closed the page's");
+            assert_eq!(app.session.active().map(|d| d.uid), Some(uid), "{what} switched presentations");
+            assert!(app.doc_window.is_none(), "{what} opened another window on the presentation");
+            if let Some(b) = &app.backstage {
+                assert!(
+                    !matches!(b.page, backstage::Page::Home | backstage::Page::New | backstage::Page::Open),
+                    "{what} opened File on {:?}",
+                    b.page
+                );
+            }
+            // The next command starts from the editor as it opens.
+            app.show = None;
+            app.dialog = None;
+            app.palette = None;
+            app.close_backstage();
+        }
+    }
+}
+
+/// #1431: a comment card's reply row was wider than the pane, so the Comments pane grew every
+/// frame until it stuck at its widest and dragging its edge did nothing.
+#[test]
+fn comments_pane_keeps_its_width_and_resizes() {
+    let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1200.0, 800.0)).build_ui_state(
+        |ui, app: &mut SlideApp| {
+            app.logic(ui.ctx());
+            app.ui(ui);
+        },
+        SlideApp::new(Session::with_new(), Services::default()),
+    );
+    h.run_steps(3);
+    h.state_mut().run("comment.add", json!({"text": "Check the figures on this slide"})).unwrap();
+    h.state_mut().run("comment.add", json!({"text": "Resolved one"})).unwrap();
+    h.state_mut().run("comment.resolve", json!({"index": 1, "resolved": true})).unwrap();
+    h.state_mut().run("view.pane", json!({"pane": "comments"})).unwrap();
+    h.run_steps(30);
+    let width = h.state().ui.pane_width;
+    assert!(width < 320.0, "the pane keeps its default width, not {width}");
+    // The cards stay compact: the second one starts near the top, not below a stretched first.
+    let second = h.get_by_label("Resolved one").rect();
+    assert!(second.top() < 450.0, "the second comment sits near the top, at {second:?}");
+
+    // Drag the pane's left edge: right narrows it, left widens it.
+    let drag = |h: &mut egui_kittest::Harness<'_, SlideApp>, dx: f32| {
+        let start = egui::pos2(1200.0 - h.state().ui.pane_width - 1.0, 500.0);
+        let end = start + egui::vec2(dx, 0.0);
+        h.event(egui::Event::PointerMoved(start));
+        h.run_steps(1);
+        h.event(egui::Event::PointerButton { pos: start, button: egui::PointerButton::Primary, pressed: true, modifiers: egui::Modifiers::NONE });
+        for i in 1..=6 {
+            h.event(egui::Event::PointerMoved(start + (end - start) * (i as f32 / 6.0)));
+            h.run_steps(1);
+        }
+        h.event(egui::Event::PointerButton { pos: end, button: egui::PointerButton::Primary, pressed: false, modifiers: egui::Modifiers::NONE });
+        h.run_steps(10);
+        h.state().ui.pane_width
+    };
+    let narrow = drag(&mut h, 50.0);
+    assert!(narrow < width - 40.0, "dragging right narrows the pane: {width} -> {narrow}");
+    let wide = drag(&mut h, -150.0);
+    assert!(wide > narrow + 140.0, "dragging left widens the pane: {narrow} -> {wide}");
 }

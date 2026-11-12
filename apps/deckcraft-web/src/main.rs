@@ -9,7 +9,7 @@
 //! - File → Open and Insert → Pictures/Audio/Video use the browser file picker; bytes arrive
 //!   asynchronously through `Services::inbox`, applied to the document, slide and operation
 //!   that started the pick (a dismissed picker or a closed document drops the file);
-//! - Save and Export trigger a browser download;
+//! - Save and Export trigger a browser download (or go to the framing page with `?host=parent`);
 //! - dropped files are read asynchronously by `web::WebShell` and delivered through the inbox;
 //! - preferences are not persisted.
 //!
@@ -26,10 +26,16 @@
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 #![forbid(unsafe_code)]
 
+// //// Neoffice — `api` is upstream's page API (`window.deckcraft`, v0.17.0), a control channel that a page hosting the editor must not
+// have; `web.rs` installs it only when no page frames the editor, and its rules are tested natively, so it is built for tests as well.
+#[cfg(any(target_arch = "wasm32", test))]
+mod api;
 // //// Neoffice — added module: the bridge to the page that frames the editor (`?host=parent`). Its rules are
 // tested natively, so it is built for tests as well; only its `postMessage` half is browser code.
 #[cfg(any(target_arch = "wasm32", test))]
 mod host;
+#[cfg(target_arch = "wasm32")]
+mod presenter;
 // //// Neoffice — added module: where the Nora pane's calls may go (`web::nora` applies it); its rules are tested natively.
 #[cfg(any(target_arch = "wasm32", test))]
 mod nora_origin;

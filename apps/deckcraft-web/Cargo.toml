@@ -16,6 +16,12 @@ path = "src/main.rs"
 [dependencies]
 deckcraft-engine = { workspace = true }
 deckcraft-ui-egui = { workspace = true }
+# The page command API (storytold/craft-libs#413): window.deckcraft over the control channel.
+craft-web-api = { git = "https://github.com/storytold/craft-libs", rev = "fd5e2feff6ea25bed371a99cc732b3968d621505", version = "0.1.0" }
+# The host messages (storytold/craft-libs): one contract and one bridge for the web builds.
+craft-web-host = { git = "https://github.com/storytold/craft-libs", rev = "fd5e2feff6ea25bed371a99cc732b3968d621505", version = "0.1.0" }
+# //// Neoffice — not used by this fork: the host bridge is ours (src/host.rs), which keeps `deckcraft:saved` and the PowerPoint save.
+# Left in place so that this file stays upstream's; drop the dependency here if a merge has to touch this line.
 egui = { workspace = true }
 log = { workspace = true }
 serde_json = { workspace = true }
@@ -29,6 +35,7 @@ wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
 # //// Neoffice — MessageEvent and UrlSearchParams are for the host bridge (src/host.rs); Headers, Request, RequestInit,
 # RequestCredentials and Response are for the Nora pane's `fetch` (src/web/nora.rs).
+# //// Neoffice — Event and EventTarget are upstream's own (v0.15, the Presenter View window, src/presenter.rs).
 # //// Neoffice — HtmlIFrameElement is for the print dialog Nora opens on the presentation's PDF
 # (src/web.rs, `print_pdf`).
-web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlElement", "HtmlCanvasElement", "HtmlAnchorElement", "HtmlIFrameElement", "Blob", "BlobPropertyBag", "Url", "Location", "CssStyleDeclaration", "MessageEvent", "UrlSearchParams", "Headers", "Request", "RequestInit", "RequestCredentials", "Response"] }
+web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlElement", "HtmlCanvasElement", "HtmlAnchorElement", "HtmlIFrameElement", "Blob", "BlobPropertyBag", "Url", "Location", "CssStyleDeclaration", "MessageEvent", "Event", "EventTarget", "UrlSearchParams", "Headers", "Request", "RequestInit", "RequestCredentials", "Response"] }

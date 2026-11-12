@@ -1,6 +1,6 @@
 use super::files::task;
 use super::{Backstage, Icon, Outcome, Page, RichText, Sense, SlideApp, Tokens, Ui, Value, dim, heading, json, theme, vec2};
-use crate::neoffice_i18n::{fmt, l10n}; // //// Neoffice — the interface in the person's language (l10n), see `neoffice_i18n`.
+use crate::neoffice_i18n::l10n; // //// Neoffice — the interface in the person's language (l10n), see `neoffice_i18n`.
 
 /// Save As and Change File Type: (id for [`SlideApp::export_as`], label, detail).
 pub const SAVE_TYPES: [(&str, &str, &str); 7] = [
@@ -179,7 +179,8 @@ pub(super) fn save_as(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage, out: 
             .response
             .widget_info(|| egui::WidgetInfo::labeled(egui::Role::ComboBox, true, "Save as type"));
         let web = app.services.pick_save.is_none();
-        // //// Neoffice — a hosting page stores the presentation (`Services::host_save`): nothing is downloaded.
+        // //// Neoffice — a hosting page stores the presentation (`Services::host_save`): nothing is downloaded, whatever
+        // upstream's `web` says; `web` is kept for the button's words and for `done` below (see there).
         let to_page = app.services.host_save.is_some();
         let label = if web && !to_page { "Download" } else { "Save" };
         let save = ui.add(egui::Button::new(RichText::new(l10n(label)).color(t.accent_text)).fill(t.accent).min_size(vec2(84.0, 26.0))); // //// Neoffice — in the person's language (l10n)
@@ -195,9 +196,14 @@ pub(super) fn save_as(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage, out: 
             // //// Neoffice — in the person's language (l10n)
             let fmt = bs.file_type;
             let done = if matches!(fmt, "pptx" | "deckcraft") {
-                let before = app.session.active().map(|d| (d.path.clone(), d.is_dirty()));
+                // A save bumps the revision, also one under the same name that leaves the path
+                // and the dirty flag as they were; a cancelled dialog or a failed save doesn't.
+                let snapshot = |app: &SlideApp| app.session.active().map(|d| (d.path.clone(), d.is_dirty(), d.revision));
+                let before = snapshot(app);
                 app.save_as_dialog(fmt);
-                web || app.session.active().map(|d| (d.path.clone(), d.is_dirty())) != before
+                // //// Neoffice — with a hosting page the dialog closes only when the page took the file (a save bumps the
+                // revision; a refused one does not), as upstream's v0.18.1 does for its own `host_save`.
+                (web && !to_page) || snapshot(app) != before
             } else {
                 app.export_as(fmt, json!({}))
             };
@@ -232,11 +238,32 @@ fn page_format(app: &SlideApp) -> &'static str {
     if deckcraft { "deckcraft" } else { "pptx" }
 }
 
-/// Account: the interface's appearance and what DeckCraft is. DeckCraft has no accounts, so
-/// there is nothing to sign in to.
-pub(super) fn account(app: &mut SlideApp, ui: &mut Ui) {
+/// Product information, project links, credits and appearance preferences.
+pub(super) fn about(app: &mut SlideApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
-    ui.horizontal_top(|ui| {
+    // Side by side needs 480 + 40 + 340 points; stack the columns when the page is narrower.
+    let layout = if ui.available_width() >= 860.0 { egui::Layout::left_to_right(egui::Align::Min) } else { egui::Layout::top_down(egui::Align::Min) };
+    ui.with_layout(layout, |ui| {
+        ui.vertical(|ui| {
+            ui.set_width(480.0);
+            heading(ui, "Product Information");
+            ui.horizontal(|ui| {
+                let (r, _) = ui.allocate_exact_size(vec2(40.0, 40.0), Sense::hover());
+                crate::dialogs::paint_logo(ui.painter(), r);
+                // //// Neoffice — our builds show our product's name (NEOFFICE_PRODUCT_NAME), upstream's otherwise.
+                ui.label(RichText::new(crate::brand::name()).font(theme::bold(24.0)).color(t.text));
+            });
+            dim(ui, &crate::dialogs::version_line());
+            dim(ui, "Open source under MIT OR Apache-2.0. Not affiliated with Microsoft.");
+            ui.add_space(14.0);
+            // //// Neoffice — our builds show our product's name (NEOFFICE_PRODUCT_NAME), upstream's otherwise.
+            if task(ui, Icon::Help, "Credits", "Credits", &format!("The people and models who built {}.", crate::brand::name()), true) {
+                let _ = app.run("app.about", json!({}));
+            }
+            // //// Neoffice — no link to upstream's community (Discord): this build's people have their own.
+            ui.hyperlink_to("Source on GitHub", deckcraft_engine::links::GITHUB);
+        });
+        ui.add_space(40.0);
         ui.vertical(|ui| {
             ui.set_width(340.0);
             heading(ui, "Appearance");
@@ -254,43 +281,6 @@ pub(super) fn account(app: &mut SlideApp, ui: &mut Ui) {
                 })
                 .response
                 .widget_info(|| egui::WidgetInfo::labeled(egui::Role::ComboBox, true, "Appearance"));
-            ui.add_space(16.0);
-            heading(ui, "User Information");
-            // //// Neoffice — our product's name in our builds; with a hosting page, the presentation is the page's, not the device's.
-            if app.services.host_owns_documents {
-                dim(
-                    ui,
-                    &fmt(
-                        l10n("{product} has no accounts of its own: the page that hosts the editor keeps this presentation."),
-                        &[("product", crate::brand::name())],
-                    ),
-                ); // //// Neoffice — in the person's language (l10n)
-            } else {
-                dim(
-                    ui,
-                    &format!("{} has no accounts: there is nothing to sign in to, and your presentations stay on your device.", crate::brand::name()),
-                );
-            }
-        });
-        ui.add_space(40.0);
-        ui.vertical(|ui| {
-            heading(ui, "Product Information");
-            ui.horizontal(|ui| {
-                let (r, _) = ui.allocate_exact_size(vec2(40.0, 40.0), Sense::hover());
-                crate::dialogs::paint_logo(ui.painter(), r);
-                // //// Neoffice — our builds show our product's name (NEOFFICE_PRODUCT_NAME), upstream's otherwise.
-                ui.label(RichText::new(crate::brand::name()).font(theme::bold(24.0)).color(t.text));
-            });
-            dim(ui, &crate::dialogs::version_line());
-            dim(ui, "Open source under MIT OR Apache-2.0. Not affiliated with Microsoft.");
-            ui.add_space(14.0);
-            // //// Neoffice — our builds show our product's name (NEOFFICE_PRODUCT_NAME), upstream's otherwise.
-            let about = crate::brand::about();
-            if task(ui, Icon::Help, about, about, "The version, the people and models who built it, and where to find us.", true) {
-                let _ = app.run("app.about", json!({}));
-            }
-            // //// Neoffice — no link to upstream's community (Discord): this build's people have their own.
-            ui.hyperlink_to("Source on GitHub", deckcraft_engine::links::GITHUB);
         });
     });
 }

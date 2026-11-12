@@ -10,9 +10,14 @@ At the next upstream merge, `grep -rn "////"` in the source plus this file give 
 picture of what is ours and why.
 
 - **Upstream**: `storytold/deckcraft`, branch `main`.
-- **Base of the divergence**: `ee39ff67816d0039143ec7c98ea604cefe0cd2e5`, the tag `v0.14.1`, merged on 2026-11-02
-  (before: `b47195feec0f0fe4220d8943ad1c8add5dad8072`, the tag `v0.10.0`, merged on 2026-10-24; `fe510bdac68118f2c9a714e69d0ff572e3f9a0c7`,
+- **Base of the divergence**: `7cc73ab1895ed2e30c8afbcada20c70b9ea0a440`, the tag `v0.18.1`, merged on 2026-11-12
+  (before: `ee39ff67816d0039143ec7c98ea604cefe0cd2e5`, the tag `v0.14.1`, merged on 2026-11-02; `b47195feec0f0fe4220d8943ad1c8add5dad8072`, the tag `v0.10.0`, merged on 2026-10-24; `fe510bdac68118f2c9a714e69d0ff572e3f9a0c7`,
   the tag `v0.9.0`, merged on 2026-10-22; and `688c7ef592c901ca4541c25e210c1b302e4dc066`, the tag `v0.6.1`, where `version-15` was cut on 2026-10-13).
+  The v0.18.1 merge (287 upstream commits, one merge; the common ancestor with upstream's `main` is `2127bd1b`, whose tree is the tag's):
+  upstream ships its own host bridge (`craft-web-host`, v0.16.0) and a page API (`window.deckcraft`, `craft-web-api`, v0.17.0), a Presenter View in a
+  second browser window (v0.15), an About page in place of Account, and many bounded-input fixes. 12 files conflicted: ours kept
+  (`apps/deckcraft-web/src/host.rs`, our `Services::host_save`), upstream's code taken everywhere else; see the sections below. No command
+  was added or removed (329 engine commands before and after; `shape.fill`'s and `app.backstage`'s documentation changed).
   The v0.14.1 merge: upstream split `ui-egui`'s `lib.rs`, `ribbon.rs`, `dialogs.rs`, `canvas.rs`, `show.rs`, `backstage.rs` and
   `panes.rs` (now `panels/`) into modules, so our changes to them were carried to their new files by hand and by script
   (the marker lines are the proof); egui is 0.37 with upstream's forks of egui and winit.
@@ -70,11 +75,27 @@ their own `//// Neoffice — added file` header.
   - The interface is English only (DeckCraft has no string catalog yet, see
     `docs/localization-parity.md`), so the status line "Couldn't save {name}: {error}" has no French.
     Its French, for when there is a catalog: "Impossible d'enregistrer {name} : {error}".
-  - Drop the bridge when upstream ships its own for DeckCraft, keeping `deckcraft:saved`, the
-    PowerPoint save and the blank start.
+  - **Upstream shipped its own bridge in v0.16.0 and ours stays** (`craft-web-host`, `apps/deckcraft-web/src/host.rs` there, `?host=parent`,
+    `Services::host_save` with `(name, bytes, save_as)`, `SlideApp::save_to_host`, `open_from_host`, `start_for_host`). Ours keeps what theirs has no
+    answer for: `deckcraft:saved` (a save the page refused never reads as saved), the page's file id for Nora, the PowerPoint save of a presentation made in the
+    editor (`<title>.pptx`; upstream's is `.deckcraft`), Save As offering the page's format only, and the refusal to open, create or close a presentation.
+    So the file `host.rs` is ours (the merge took our side whole), `Services::host_save` and `HostSaveFn` keep our signature (the presentation, so the
+    page's rules for the name and format stay in the bridge), and upstream's `save_to_host` is removed with the branches that called it (`save`, `save_as_dialog`,
+    `run`'s `file.save`). `open_from_host`, `start_for_host` and `host_start` stay as upstream has them, unused by us. Upstream's `host_save_tests.rs` is not
+    built (`lib.rs`; the file is as upstream has it: it tests its own hook); two of its `backstage/tests.rs` tests were adapted to ours. `craft-web-host`
+    stays in `apps/deckcraft-web/Cargo.toml`, unused. Drop all of this when upstream's bridge keeps those answers.
+  - **The page API is off in a hosted editor** (`window.deckcraft`, `apps/deckcraft-web/src/api.rs`, upstream's, v0.17.0): a control channel over the
+    whole editor (the control protocol's `app.open` opens a presentation without `run`, `app.quit` closes the window, `ui.key` and `ui.dialog.open` act as the
+    person would). `web.rs` does not install it when the bridge is there or Nora is connected (`host::page_api_allowed`), and `control::handle` refuses
+    every request while `host_owns_documents` is set (`HOSTED_CONTROL_MESSAGE`), whoever queued it (tests: `control_is_refused_when_a_page_hosts_the_editor`
+    in `crates/ui-egui/src/tests.rs`, `the_page_api_is_installed_only_without_a_host` in `host.rs`). Without a host it is upstream's.
+  - **The Presenter View window is not the framed page** (`presenter::token`, upstream's popup of v0.15: the same address with `#deckcraft-presenter=<token>`):
+    `web.rs` gives it neither the bridge nor Nora's pane nor the page API (it builds `presenter::Popup` and nothing else). In a browser the display count is
+    unknown, so a show opens it as upstream does.
 
-- **No Discord link in the About dialog nor in the File tab** (`crates/ui-egui/src/dialogs.rs`, the About dialog;
-  `crates/ui-egui/src/backstage.rs`, its Home page, which is also the start screen, and its Account page): the links to
+- **No Discord link in the About dialog nor in the File tab** (`crates/ui-egui/src/dialogs/about.rs`, the About dialog;
+  `crates/ui-egui/src/backstage/files.rs`, its Home page, which is also the start screen, and `backstage/info.rs`, its About page (upstream's, since v0.15, in place
+  of Account: the user-information note that our hosted build had there went with it)): the links to
   upstream's community are not shown, for everyone who uses this build. The MCP server's instructions and
   the `app.links` command list the project's addresses for agents, and stay as upstream has them.
 
@@ -93,7 +114,10 @@ their own `//// Neoffice — added file` header.
   out Home, New and Open, in the bar and in its Customize menu, without changing the person's toolbar. The command
   palette does not list them (`menus.rs`). A presentation dropped on the editor is not taken (`opens_as_presentation`,
   asked by `apps/deckcraft-web/src/web.rs`, which cancels the request it began). The file the page hands over opens
-  without `run` (see the bridge). Six tests in `crates/ui-egui/src/tests.rs` and one in `apps/deckcraft-web/src/host.rs`.
+  without `run` (see the bridge). Six tests in `crates/ui-egui/src/tests.rs` and one in `apps/deckcraft-web/src/host.rs`; since the v0.18.1 merge a sweep
+  (`no_command_opens_creates_or_closes_a_presentation_in_an_editor_a_page_hosts`) runs every command of the engine and of the interface in a hosted editor and
+  checks that the page's presentation stays the only one, in one window, and that the File tab never lands on Home, New or Open: a command that upstream adds
+  later and that brings a presentation in without being named in `hidden_from_a_host` fails there.
   Reuse Slides and Compare (v0.14.1's commands that read another file) need no refusal: without a file picker (the browser) they say
   "needs the desktop app" and open no document (a test says so). The words are English only, like the rest of the interface. Every other build behaves as before.
 
@@ -230,7 +254,8 @@ their own `//// Neoffice — added file` header.
 - **The browser build reads its address's flags by name** (`apps/deckcraft-web/src/web.rs`, `has_param`, with
   `URLSearchParams` as `host.rs` reads its own): upstream looked for `webgl`, `blank` and `show` anywhere in the address's
   text, so a host name (`?nora=https://showroom…`) or a name the page passes (`?author=`) started the slide show over the
-  editor. Drop it when upstream reads them by name.
+  editor. Upstream reads them by name since v0.16 (`query_has`, `query_param`); ours stays in `web.rs` (`has_param`, `param`, which also trims
+  and drops an empty value) and upstream's two helpers are not carried. Drop ours, and take theirs, when it is convenient.
 
 - **The interface's Latin font comes before its Japanese one** (`crates/ui-egui/src/theme.rs`, `font_definitions`, which
   `install_fonts` uses since v0.8, with a test): Inter when craft-fonts has it, else egui's Ubuntu Light, then BIZ
@@ -257,7 +282,7 @@ their own `//// Neoffice — added file` header.
   name otherwise, so upstream's builds and every test run are unchanged. DeckCraft has no string catalog, so the places
   that show the app's name call `brand::name()`, `brand::about()` or `brand::label()`: the title bar without a
   presentation (`ribbon.rs`), the About dialog and its title, the quit dialog's title, the Find dialog's "can't find"
-  (`dialogs.rs`), the File tab's Home page (the start screen), its Account page and its Print page (`backstage.rs`),
+  (`dialogs.rs`), the File tab's Home page (the start screen), its About page and its Print page (`backstage.rs`),
   the Help menu and the command palette (`menus.rs`), the Presenter View's title (`show.rs`), two status messages
   (`lib.rs`: a file it can't open, a format it can't export) and the page that failed to start
   (`apps/deckcraft-web/src/web.rs`); `crates/engine/src/cmd/file.rs`, below the interface, applies the same rule
@@ -274,7 +299,8 @@ their own `//// Neoffice — added file` header.
   merge they were added by hand, the three packages and their three lines under `deckcraft-ui-egui`, and checked by the
   CI's `--locked` builds; at the v0.10.0 merge git's own merge of the lock kept them, and gave upstream's lock plus
   these 33 lines, nothing else; at the v0.14.1 merge upstream's lock was taken and `cargo metadata` added the same packages back,
-  with `craft-nora` and `craft-nora-ui` still at `4d7eea6` and no other change).
+  with `craft-nora` and `craft-nora-ui` still at `4d7eea6` and no other change; at the v0.18.1 merge git merged the lock without a conflict: upstream's
+  (`craft-audio`, `craft-web-api`, `craft-web-host`, the four codecs it moved to craft-libs gone) plus ours, `--locked` builds pass).
 
 ## Upstream files left as they are
 
@@ -282,6 +308,8 @@ their own `//// Neoffice — added file` header.
   through the API, like upstream's other workflows (they need upstream's signing, Nix's action, and a weekly Windows
   runner). `.github/dependabot.yml`: Dependabot's version updates do not run on a fork unless someone turns them on,
   which this fork does not do (they would open pull requests; this fork has one branch).
+- `.github/workflows/house-rules.yml` (upstream's, since v0.16): checks `AGENTS.md` and `CLAUDE.md` through craft-common-actions on a push to
+  `main` or a pull request, neither of which this fork has, so it never runs here. Left as it is.
 - `.github/workflows/sonarcloud.yml`, `sonar-project.properties` and `.coderabbit.yaml` (upstream's, since v0.10.0):
   SonarCloud's scan through `storytold/craft-common-actions` with upstream's project key and secrets, and CodeRabbit's
   review settings. The workflow is disabled on this fork through the API (it runs on upstream's `main` and on pull

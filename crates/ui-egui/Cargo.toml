@@ -19,6 +19,7 @@ deckcraft-anim = { workspace = true }
 deckcraft-engine = { workspace = true }
 deckcraft-media = { workspace = true }
 egui = { workspace = true, features = ["default_fonts", "monochrome_emoji_fonts"] }
+egui_extras = { workspace = true }
 craft-ui = { workspace = true }
 # //// Neoffice — the Nora assistant pane (nora_pane.rs): Nora's client core and its egui panel; and the person's
 # preferred languages (the operating system's, or the browser's with `js`), which pick the language of the words

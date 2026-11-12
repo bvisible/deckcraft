@@ -2,7 +2,7 @@ use super::{Color32, CornerRadius, Rect, Sense, SlideApp, Stroke, Tokens, Ui, po
 use crate::neoffice_i18n::l10n; // //// Neoffice — the interface in the person's language (l10n), see `neoffice_i18n`.
 
 /// Room the About credits need for their table; the About tab keeps its compact size.
-pub(super) const CREDITS_SIZE: egui::Vec2 = vec2(640.0, 380.0);
+pub(super) const CREDITS_SIZE: egui::Vec2 = vec2(820.0, 380.0);
 
 /// The Contributors / Models body in a block of its own fixed size, below the tab row. Sizing the
 /// dialog's `ui` instead (`set_min_size` / `set_max_height`) squeezed the tab row and the first

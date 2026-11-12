@@ -60,6 +60,9 @@ impl ControlRequest {
     }
 }
 
+// //// Neoffice — what a control request is told while a page hosts the editor (see `handle`).
+pub const HOSTED_CONTROL_MESSAGE: &str = "The control channel is off: the page that hosts the editor drives it.";
+
 pub enum Outcome {
     Done(Value),
     Screenshot { path: Option<String> },
@@ -135,6 +138,13 @@ fn f(p: &Value, k: &str) -> Option<f32> {
 
 /// Dispatch one decoded control request and return an outcome for its caller to reply with.
 pub fn handle(app: &mut SlideApp, ctx: &egui::Context, req: &ControlRequest) -> Outcome {
+    // //// Neoffice — the control channel (the desktop's `--control`, and the browser's `window.deckcraft` since v0.17) is the whole editor's
+    // surface: `app.open` opens another presentation without `SlideApp::run`, `app.quit` closes the window, `ui.key` and `ui.dialog.open` press and answer
+    // what the person would. A page that hosts the editor (`Services::host_owns_documents`) has the bridge and its own rules, so
+    // every request is refused, whoever queued it. The web shell does not install `window.deckcraft` there either (`web.rs`).
+    if app.services.host_owns_documents {
+        return err(HOSTED_CONTROL_MESSAGE);
+    }
     let p = &req.params;
     let s = |k: &str| p.get(k).and_then(Value::as_str);
     match req.method.as_str() {
