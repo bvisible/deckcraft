@@ -251,10 +251,9 @@ pub fn sidecar_part(name: &str) -> bool {
     let file = segs.last().copied().unwrap_or("");
     let stem = file.strip_prefix("chart").unwrap_or("");
     let num = stem.strip_suffix(".xml.rels").or_else(|| stem.strip_suffix(".xml")).unwrap_or("");
-    if stem != file && !num.is_empty() && num.chars().all(|c| c.is_ascii_digit()) {
-        return false;
-    }
-    true
+    // //// Neoffice — the same test as one expression, as upstream wrote it since (17223d09): clippy 1.100's `needless_bool`
+    // refuses an `if` that returns a bool literal before another (`-D warnings` in CI). Nothing changes in what it answers.
+    !(stem != file && !num.is_empty() && num.chars().all(|c| c.is_ascii_digit()))
 }
 
 pub fn dir_of(part: &str) -> String {
