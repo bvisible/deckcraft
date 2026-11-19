@@ -40,6 +40,9 @@ skrifa = { workspace = true }
 # kittest's own dev-dependencies do not propagate; tests need both font features explicitly.
 egui = { workspace = true, features = ["default_fonts", "monochrome_emoji_fonts"] }
 egui_kittest = { workspace = true, features = ["wgpu", "snapshot"] }
+# //// Neoffice — the Nora panel's microphone pretended outside a browser, for the tests of a pane that gives a dictation up
+# when it closes (nora_pane.rs); a dev-dependency's feature, never a build's.
+craft-nora-ui = { workspace = true, features = ["test-support"] }
 
 [build-dependencies]
 serde_json = { workspace = true }

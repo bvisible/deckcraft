@@ -103,8 +103,12 @@ arboard = { version = "3.6", default-features = false }
 # sphere), what Nora is doing in words, a microphone to dictate (`nora_dictation`), reads of her actions that follow what
 # happens in the turn, and a clock that runs while the window is hidden (`drive`, pumped from `logic`). egui 0.37 only.
 # //// Neoffice — 3247387 (05.11.2026): a microphone whose audio context a browser starts on a gesture still hears, and the sphere is drawn 12 times a second.
-craft-nora = { git = "https://github.com/bvisible/craft-libs", rev = "324738706bc87d5cb8d87ab19414fd19c15eef34" }
-craft-nora-ui = { git = "https://github.com/bvisible/craft-libs", rev = "324738706bc87d5cb8d87ab19414fd19c15eef34" }
+# //// Neoffice — 8fe8f1f (19.11.2026): the microphone is let go when the pane closes or the page is left, by the app
+# (`NoraPanel::cancel_dictation`, `Input::CancelDictation`, 018334d) and by the recorder's own watch over the frames that draw
+# the panel (31e444c); a recording stops when the page goes out of sight; New conversation over a page the app draws (4876ba6);
+# an app's tests can open the panel's microphone (feature `test-support`, `NoraPanel::dictation_under_way`).
+craft-nora = { git = "https://github.com/bvisible/craft-libs", rev = "8fe8f1ff3d8d48769e693a503069f425028f81bc" }
+craft-nora-ui = { git = "https://github.com/bvisible/craft-libs", rev = "8fe8f1ff3d8d48769e693a503069f425028f81bc" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
